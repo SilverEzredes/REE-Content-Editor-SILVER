@@ -331,7 +331,7 @@ public static class AppImguiHelpers
         ImGui.SameLine();
         ImGui.SetCursorScreenPos(new Vector2(ImGui.GetItemRectMin().X + w - (ImGui.GetFrameHeight() * 2 + ImGui.GetStyle().FramePadding.X), ImGui.GetItemRectMin().Y));
         ImGui.SetNextItemAllowOverlap();
-        if (ImGui.Button($"{AppIcons.SI_BookmarkClear}##{label}")) {
+        if (ImGui.Button($"{AppIcons.SI_GenericClear}##{label}")) {
             files.Clear();
             if (!string.IsNullOrEmpty(selectedPath)) {
                 files.AddRecent(game, selectedPath);
@@ -372,6 +372,46 @@ public static class AppImguiHelpers
         }
         if (iconOnly) {
             ImguiHelpers.Tooltip("Open wiki for usage documentation");
+        }
+    }
+    public static void ConfirmActionPopup(string id, string icon, Vector4 iconColor, string confirmText, Action onConfirm)
+    {
+        var viewport = ImGui.GetMainViewport();
+        Vector2 center = viewport.Pos + viewport.Size * 0.5f;
+        ImGui.SetNextWindowPos(center, new Vector2(0.5f, 0.5f));
+        if (ImGui.BeginPopupModal(id, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoTitleBar)) {
+            var draw = ImGui.GetWindowDrawList();
+            var style = ImGui.GetStyle();
+            float height = ImGui.GetTextLineHeight() - ImGui.GetStyle().FramePadding.Y;
+            Vector2 start = ImGui.GetCursorScreenPos();
+            ImGui.Dummy(new Vector2(0, height));
+
+            Vector2 end = ImGui.GetItemRectMax();
+            Vector2 rectMin = start - new Vector2(style.WindowPadding.X, style.WindowPadding.Y);
+            Vector2 rectMax = new Vector2(start.X + ImGui.GetWindowSize().X - style.WindowPadding.X, end.Y + style.WindowPadding.Y);
+            draw.AddRectFilled(rectMin, rectMax, ImGui.GetColorU32(ImGuiCol.TableHeaderBg));
+
+            ImGui.SetCursorScreenPos(start);
+            ImGui.PushStyleColor(ImGuiCol.Text, iconColor);
+            ImGui.Text(icon);
+            ImGui.PopStyleColor();
+            ImGui.SameLine();
+            ImGui.Text(id);
+
+            ImGui.Spacing();
+
+            var textSize = ImGui.CalcTextSize(confirmText);
+            ImGui.Text(confirmText);
+            ImGui.Separator();
+            if (ImGui.Button("Yes"u8, new Vector2(textSize.X / 2, 0))) {
+                onConfirm?.Invoke();
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("No"u8, new Vector2(textSize.X / 2, 0))) {
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.EndPopup();
         }
     }
 }

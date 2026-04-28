@@ -278,24 +278,13 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
                     ImGui.OpenPopup("Confirm Action"u8);
                 }
                 ImguiHelpers.Tooltip("Clear Custom Bookmarks");
-
-                if (ImGui.BeginPopupModal("Confirm Action"u8, ImGuiWindowFlags.AlwaysAutoResize)) {
-                    string confirmText = $"Are you sure you want to delete all custom bookmarks for {Languages.TranslateGame(Workspace.Config.Game.name)}?";
-                    var textSize = ImGui.CalcTextSize(confirmText);
-                    ImGui.Text(confirmText);
-                    ImGui.Separator();
-
-                    if (ImGui.Button("Yes"u8, new Vector2(textSize.X / 2, 0))) {
+                AppImguiHelpers.ConfirmActionPopup("Confirm Action", $"{AppIcons.SI_GenericDelete2}", Colors.IconTertiary,
+                    $"Are you sure you want to delete all custom bookmarks for {Languages.TranslateGame(Workspace.Config.Game.name)}?",
+                    () => {
                         _bookmarks.User.ClearBookmarks(Workspace.Config.Game.name);
                         Logger.Info($"Cleared custom bookmarks for {Workspace.Config.Game.name}");
-                        ImGui.CloseCurrentPopup();
                     }
-                    ImGui.SameLine();
-                    if (ImGui.Button("No"u8, new Vector2(textSize.X / 2, 0))) {
-                        ImGui.CloseCurrentPopup();
-                    }
-                    ImGui.EndPopup();
-                }
+                );
             }
             ImGui.SameLine();
             string filterModeName = _filterMode switch {
