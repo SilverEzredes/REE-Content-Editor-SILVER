@@ -374,22 +374,24 @@ public static class AppImguiHelpers
             ImguiHelpers.Tooltip("Open wiki for usage documentation");
         }
     }
+
     public static void ConfirmActionPopup(string id, string icon, Vector4 iconColor, string confirmText, Action onConfirm)
     {
         var viewport = ImGui.GetMainViewport();
         Vector2 center = viewport.Pos + viewport.Size * 0.5f;
         ImGui.SetNextWindowPos(center, new Vector2(0.5f, 0.5f));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 2);
         if (ImGui.BeginPopupModal(id, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoTitleBar)) {
             var draw = ImGui.GetWindowDrawList();
             var style = ImGui.GetStyle();
-            float height = ImGui.GetTextLineHeight() - ImGui.GetStyle().FramePadding.Y;
+            float height = ImGui.GetTextLineHeight() - style.FramePadding.Y;
             Vector2 start = ImGui.GetCursorScreenPos();
             ImGui.Dummy(new Vector2(0, height));
 
             Vector2 end = ImGui.GetItemRectMax();
             Vector2 rectMin = start - new Vector2(style.WindowPadding.X, style.WindowPadding.Y);
             Vector2 rectMax = new Vector2(start.X + ImGui.GetWindowSize().X - style.WindowPadding.X, end.Y + style.WindowPadding.Y);
-            draw.AddRectFilled(rectMin, rectMax, ImGui.GetColorU32(ImGuiCol.TableHeaderBg));
+            draw.AddRectFilled(rectMin, rectMax, ImGui.GetColorU32(ImGuiCol.TableHeaderBg), 2 * style.WindowRounding);
 
             ImGui.SetCursorScreenPos(start);
             ImGui.PushStyleColor(ImGuiCol.Text, iconColor);
@@ -413,5 +415,6 @@ public static class AppImguiHelpers
             }
             ImGui.EndPopup();
         }
+        ImGui.PopStyleVar();
     }
 }
