@@ -376,10 +376,10 @@ public static class AppImguiHelpers
     }
     public enum ActionModalType
     {
-        Confirm,
+        Delete,
         Error
     }
-    public static void ShowActionModal(string id, string icon, Vector4 iconColor, string text, Action? onAction, ActionModalType type = ActionModalType.Confirm)
+    public static void ShowActionModal(string id, string icon, Vector4 iconColor, string text, Action? onAction, ActionModalType type = ActionModalType.Delete)
     {
         var viewport = ImGui.GetMainViewport();
         Vector2 center = viewport.Pos + viewport.Size * 0.5f;
@@ -410,7 +410,7 @@ public static class AppImguiHelpers
             ImGui.Text(text);
             ImGui.Separator();
             switch (type) {
-                case ActionModalType.Confirm:
+                case ActionModalType.Delete:
                     if (ImGui.Button("Yes"u8, new Vector2(textSize.X / 2, 0))) {
                         onAction?.Invoke();
                         ImGui.CloseCurrentPopup();
