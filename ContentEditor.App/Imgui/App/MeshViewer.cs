@@ -270,12 +270,6 @@ public class MeshViewer : FileEditor, IDisposable, IFocusableFileHandleReference
 
             if (!isSynced && mainCtx.GameObject != null) {
                 if (ImGui.MenuItem($"{AppIcons.SI_GenericInfo} Mesh Info")) ImGui.OpenPopup("MeshInfo");
-                var meshWarn = mainCtx.GetMeshWarnings();
-                if (meshWarn != null) {
-                    using var _ = ImguiHelpers.OverrideStyleCol(ImGuiCol.Text, Colors.Warning);
-                    ImGui.MenuItem($"{AppIcons.SI_GenericWarning}##mesh");
-                    ImguiHelpers.Tooltip(meshWarn);
-                }
                 ImguiHelpers.VerticalSeparator();
                 if (ImGui.MenuItem($"{AppIcons.SI_SceneGameObject4} Mesh Collection")) ImGui.OpenPopup("MeshList");
                 if (ImGui.MenuItem($"{AppIcons.SI_MeshViewerMeshGroup} Mesh Groups")) ImGui.OpenPopup("MeshGroups");
@@ -804,6 +798,9 @@ public class MeshViewer : FileEditor, IDisposable, IFocusableFileHandleReference
         ImguiHelpers.ToggleButton($"{AppIcons.SI_Settings}", ref showImportSettings, Colors.IconActive);
         ImguiHelpers.Tooltip("Show Settings");
 
+        ImGui.SameLine();
+        AppImguiHelpers.WikiLinkButton("https://github.com/kagenocookie/REE-Content-Editor/wiki/Mesh-editing", true);
+
         if (exportInProgress) {
             ImGui.SameLine();
             // we have no way of showing any progress from assimp's side (which is 99% of the export duration) so this is the best we can do
@@ -823,8 +820,6 @@ public class MeshViewer : FileEditor, IDisposable, IFocusableFileHandleReference
         }
         if (mesh.NativeMesh.MeshData?.LODs.Count > 1 || mesh.NativeMesh.ShadowMesh?.LODs.Count > 0) ImGui.Checkbox("Include LODs and Shadow Mesh", ref exportLods);
         if (mesh.NativeMesh.OccluderMesh?.MeshGroups.Count > 0) ImGui.Checkbox("Include Occlusion Mesh", ref exportOcclusion);
-        ImGui.SameLine();
-        AppImguiHelpers.WikiLinkButton("https://github.com/kagenocookie/REE-Content-Editor/wiki/Mesh-editing", true);
 
         if (showImportSettings) {
             ImGui.SeparatorText("Import Settings");
@@ -1389,15 +1384,6 @@ internal class MeshViewerContext(MeshViewer viewer, UIContext ui, FileHandle fil
         }
     }
 
-    public string? GetMeshWarnings()
-    {
-        var hasUnknownBuffer = MeshFile.NativeMesh.MeshBuffer?.Headers.BufferHeaders.Any(h => h.type == ReeLib.Mesh.VertexBufferType.UnknownData);
-        if (hasUnknownBuffer == true) {
-            return "Mesh contains an unknown data buffer.\nThis will get lost if you re-import a custom mesh over it, which might affect the ingame appearance.";
-        }
-        return null;
-    }
-
     public string? GetMdfErrors()
     {
         var meshComponent = Component;
@@ -1576,7 +1562,6 @@ internal class MeshViewerContext(MeshViewer viewer, UIContext ui, FileHandle fil
 
         var settings = AppConfig.Settings;
         if (settings.RecentMotlists.Count > 0) {
-            ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize("Recent files").X - ImGui.GetStyle().FramePadding.X);
             if (AppImguiHelpers.ShowRecentFiles(settings.RecentMotlists, Workspace.Game, ref animationSourceFile)) {
                 animationPickerContext.ResetState();
             }

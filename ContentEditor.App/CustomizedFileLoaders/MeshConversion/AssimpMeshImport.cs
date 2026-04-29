@@ -216,9 +216,16 @@ public partial class CommonMeshResource : IResourceFile
                 if (reuseBufferForShadows) continue;
 
                 buffer = mainBuffer.AdditionalBuffers.First();
-                var subscorePos = aiMesh.Name.IndexOf('_');
-                if (subscorePos == -1 || !int.TryParse(aiMesh.Name.AsSpan().Slice("shadow_lod".Length, subscorePos), out lod)) {
+                var markerPos = nodeName.IndexOf("shadow_lod");
+                if (markerPos == -1) {
                     lod = 0;
+                } else {
+                    var numStartPos = markerPos + "shadow_lod".Length;
+                    var numEndPos = nodeName.IndexOf('_', numStartPos);
+                    if (numEndPos == -1) numEndPos = nodeName.Length;
+                    if (!int.TryParse(nodeName.AsSpan()[numStartPos..numEndPos], out lod)) {
+                        lod = 0;
+                    }
                 }
                 while (lod >= mesh.ShadowMesh.LODs.Count) {
                     mesh.ShadowMesh.LODs.Add(new MeshLOD(mainBuffer));
@@ -235,10 +242,18 @@ public partial class CommonMeshResource : IResourceFile
                     mesh.OccluderMesh = new OccluderMesh(mainBuffer) { TargetBuffer = buffer };
                 }
                 meshLod = mesh.OccluderMesh;
-            } else if (aiMesh.Name.StartsWith("lod")) {
-                var subscorePos = aiMesh.Name.IndexOf('_');
-                if (subscorePos == -1 || !int.TryParse(aiMesh.Name.AsSpan().Slice("lod".Length, subscorePos), out lod)) {
+            } else if (nodeName.StartsWith("lod") || nodeName.Contains("_lod")) {
+                var markerPos = nodeName.IndexOf("_lod");
+                if (markerPos == -1) markerPos = nodeName.IndexOf("lod");
+                if (markerPos == -1) {
                     lod = 0;
+                } else {
+                    var numStartPos = nodeName[markerPos] == '_' ? markerPos + 4 : markerPos + 3;
+                    var numEndPos = nodeName.IndexOf('_', numStartPos);
+                    if (numEndPos == -1) numEndPos = nodeName.Length;
+                    if (!int.TryParse(nodeName.AsSpan()[numStartPos..numEndPos], out lod)) {
+                        lod = 0;
+                    }
                 }
                 while (lod >= mesh.MeshData!.LODs.Count) {
                     mesh.MeshData.LODs.Add(new MeshLOD(mainBuffer));
@@ -271,7 +286,7 @@ public partial class CommonMeshResource : IResourceFile
             newSub.vertsIndexOffset = vertOffset;
             newSub.vertCount = aiMesh.VertexCount;
             newSub.indicesCount = indicesCount;
-            newSub.materialIndex = (ushort)(useNameMaterials ? materialNames.IndexOf(MeshLoader.GetMeshMaterialFromName(aiMesh.Name)) : aiMesh.MaterialIndex);
+            newSub.materialIndex = (ushort)(useNameMaterials ? materialNames.IndexOf(MeshLoader.GetMeshMaterialFromName(nodeName)) : aiMesh.MaterialIndex);
             if (newSub.materialIndex < 0 || newSub.materialIndex >= materialNames.Length) {
                 newSub.materialIndex = 0;
             }
@@ -302,6 +317,15 @@ public partial class CommonMeshResource : IResourceFile
                     for (int i = 0; i < vertCount; ++i) buffer.UV1[vertOffset + i] = new HFloat2();
                 } else {
                     for (int i = 0; i < vertCount; ++i) buffer.UV1[vertOffset + i] = new HFloat2(uv[i].X, 1 - uv[i].Y);
+                }
+            }
+
+            if (buffer.UV2.Length > 0) {
+                var uv = aiMesh.TextureCoordinateChannels[2];
+                if (uv.Count == 0) {
+                    for (int i = 0; i < vertCount; ++i) buffer.UV2[vertOffset + i] = new HFloat2();
+                } else {
+                    for (int i = 0; i < vertCount; ++i) buffer.UV2[vertOffset + i] = new HFloat2(uv[i].X, 1 - uv[i].Y);
                 }
             }
 
@@ -365,7 +389,7 @@ public partial class CommonMeshResource : IResourceFile
                 }
 
                 var hasLooseVerts = Array.IndexOf(buffer.Weights, null, vertOffset, vertCount) != -1;
-                if (hasLooseVerts) throw new Exception($"Found {buffer.Weights.AsSpan(vertOffset, vertCount).ToArray().Count(w => w == null)} unweighted vertices in imported mesh {aiMesh.Name} - this is not OK");
+                if (hasLooseVerts) throw new Exception($"Found {buffer.Weights.AsSpan(vertOffset, vertCount).ToArray().Count(w => w == null)} unweighted vertices in imported mesh {nodeName} - this is not OK");
 
                 foreach (var wee in buffer.Weights.AsSpan(vertOffset, vertCount)) {
                     // ensure normalized weights
@@ -440,6 +464,7 @@ public partial class CommonMeshResource : IResourceFile
         }
         if (srcMeshes.Any(m => m.HasTextureCoords(0))) mainBuffer.UV0 = new HFloat2[totalVertCount];
         if (srcMeshes.Any(m => m.HasTextureCoords(1))) mainBuffer.UV1 = new HFloat2[totalVertCount];
+        if (srcMeshes.Any(m => m.HasTextureCoords(2))) mainBuffer.UV2 = new HFloat2[totalVertCount];
         if (srcMeshes.All(m => m.Bones.Count > 0 && m.Bones.Any(b => b.HasVertexWeights))) {
             mainBuffer.Weights = new VertexBoneWeights[totalVertCount];
             mesh.Header.flags |= ContentFlags.IsSkinning | ContentFlags.HasJoint;
