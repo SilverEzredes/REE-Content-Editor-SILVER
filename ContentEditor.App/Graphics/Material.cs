@@ -87,6 +87,9 @@ public class Material
         textureParameters.Add((name, slot, null));
     }
     public bool HasTextureParameter(TextureUnit slot) => textureParameters.FindIndex(a => a.slot == slot) != -1;
+    public bool HasColorParameter(string name) => vec4Parameters.Any(a => a.name == name);
+    public bool HasFloatParameter(string name) => floatParameters.Any(a => a.name == name);
+    public Texture? GetTexture(TextureUnit slot) => textureParameters.FirstOrDefault(a => a.slot == slot).tex;
 
     public Color GetColor(string name) => Color.FromVector4(GetParameter<Vector4>(vec4Parameters, name));
     public void SetParameter(string name, Vector4 vec) => SetParameter(vec4Parameters, name, vec);
@@ -114,7 +117,7 @@ public class Material
         RecomputeHash();
     }
 
-    public void Bind()
+    public void BindParameters(GL _gl)
     {
         foreach (var param in vec4Parameters) {
             _gl.Uniform4(param._location, param.Value);
@@ -126,12 +129,6 @@ public class Material
             if (tex == null) continue;
 
             tex.Bind(slot);
-        }
-        if (BlendMode.Blend) {
-            _gl.Enable(EnableCap.Blend);
-            _gl.BlendFunc(BlendMode.BlendModeSrc, BlendMode.BlendModeDest);
-        } else {
-            _gl.Disable(EnableCap.Blend);
         }
     }
 
