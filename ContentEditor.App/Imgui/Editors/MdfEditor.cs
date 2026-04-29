@@ -418,7 +418,7 @@ public class MdfFileImguiHandler : IObjectUIHandler
                 ImGui.OpenPopup("Confirm Action"u8);
             }
             ImguiHelpers.Tooltip("Clear material parameter bookmarks");
-            AppImguiHelpers.ConfirmActionPopup("Confirm Action", $"{AppIcons.SI_GenericDelete2}", Colors.IconTertiary,
+            AppImguiHelpers.ShowActionModal("Confirm Action", $"{AppIcons.SI_GenericDelete2}", Colors.IconTertiary,
                 $"Are you sure you want to delete all material parameter bookmarks for {Languages.TranslateGame(workspace.Game.name)}?",
                 () => {
                     mdfBookmarks?.ClearBookmarks(workspace.Game.name);

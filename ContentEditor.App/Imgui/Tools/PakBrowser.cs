@@ -278,7 +278,7 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
                     ImGui.OpenPopup("Confirm Action"u8);
                 }
                 ImguiHelpers.Tooltip("Clear Custom Bookmarks");
-                AppImguiHelpers.ConfirmActionPopup("Confirm Action", $"{AppIcons.SI_GenericDelete2}", Colors.IconTertiary,
+                AppImguiHelpers.ShowActionModal("Confirm Action", $"{AppIcons.SI_GenericDelete2}", Colors.IconTertiary,
                     $"Are you sure you want to delete all custom bookmarks for {Languages.TranslateGame(Workspace.Config.Game.name)}?",
                     () => {
                         _bookmarks.User.ClearBookmarks(Workspace.Config.Game.name);

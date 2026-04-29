@@ -374,12 +374,16 @@ public static class AppImguiHelpers
             ImguiHelpers.Tooltip("Open wiki for usage documentation");
         }
     }
-
-    public static void ConfirmActionPopup(string id, string icon, Vector4 iconColor, string confirmText, Action onConfirm)
+    public enum ActionModalType
+    {
+        Confirm,
+        Error
+    }
+    public static void ShowActionModal(string id, string icon, Vector4 iconColor, string text, Action? onAction, ActionModalType type = ActionModalType.Confirm)
     {
         var viewport = ImGui.GetMainViewport();
         Vector2 center = viewport.Pos + viewport.Size * 0.5f;
-        ImGui.SetNextWindowPos(center, new Vector2(0.5f, 0.5f));
+        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
         ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 2);
         if (ImGui.BeginPopupModal(id, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoTitleBar)) {
             var draw = ImGui.GetWindowDrawList();
@@ -402,16 +406,25 @@ public static class AppImguiHelpers
 
             ImGui.Spacing();
 
-            var textSize = ImGui.CalcTextSize(confirmText);
-            ImGui.Text(confirmText);
+            var textSize = ImGui.CalcTextSize(text);
+            ImGui.Text(text);
             ImGui.Separator();
-            if (ImGui.Button("Yes"u8, new Vector2(textSize.X / 2, 0))) {
-                onConfirm?.Invoke();
-                ImGui.CloseCurrentPopup();
-            }
-            ImGui.SameLine();
-            if (ImGui.Button("No"u8, new Vector2(textSize.X / 2, 0))) {
-                ImGui.CloseCurrentPopup();
+            switch (type) {
+                case ActionModalType.Confirm:
+                    if (ImGui.Button("Yes"u8, new Vector2(textSize.X / 2, 0))) {
+                        onAction?.Invoke();
+                        ImGui.CloseCurrentPopup();
+                    }
+                    ImGui.SameLine();
+                    if (ImGui.Button("No"u8, new Vector2(textSize.X / 2, 0))) {
+                        ImGui.CloseCurrentPopup();
+                    }
+                    break;
+                case ActionModalType.Error:
+                    if (ImGui.Button("OK"u8, new Vector2(textSize.X, 0))) {
+                        ImGui.CloseCurrentPopup();
+                    }
+                    break;
             }
             ImGui.EndPopup();
         }
