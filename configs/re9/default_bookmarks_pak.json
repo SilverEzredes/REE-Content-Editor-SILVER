@@ -3,7 +3,7 @@
     {
       "Path": "natives/stm/gameassets/content/maingame/maingame.scn.21",
       "Tags": [
-        "Scene"
+        "Stage"
       ],
       "Comment": "Main game scene"
     },

@@ -98,11 +98,11 @@ public class OverlaysWindow : IWindowHandler
         var bg = MainLoop.Instance.BackgroundTasks;
         var runningTasks = bg.PendingTasks;
         if (runningTasks > 0) {
-            var taskWindowSize = new Vector2(400, 240);
+            var taskWindowSize = new Vector2(400, 200);
             ImGui.SetNextWindowPos(size - taskWindowSize - ImGui.GetStyle().WindowPadding, ImGuiCond.Appearing);
             ImGui.SetNextWindowSize(taskWindowSize, ImGuiCond.Appearing);
             ImGui.SetNextWindowCollapsed(false, ImGuiCond.Appearing);
-            if (ImGui.Begin("BackgroundTasks", ImGuiWindowFlags.NoSavedSettings)) {
+            if (ImGui.Begin("Background Tasks", ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoDocking | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoFocusOnAppearing)) {
                 ImGui.Text("Pending background tasks: " + runningTasks);
 
                 var jobSize = new Vector2(ImGui.GetWindowWidth() - ImGui.GetStyle().WindowPadding.X * 2, 30);
