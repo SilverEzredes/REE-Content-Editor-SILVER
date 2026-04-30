@@ -115,7 +115,6 @@ public class CollisionShapePreset(GameObject gameObject, RszInstance data) : Com
                             var shape = (Capsule)preset.shape!;
                             var p1 = (Matrix4x4.CreateTranslation(shape.p0) * joint1 * transform).Translation;
                             var p2 = (Matrix4x4.CreateTranslation(shape.p1) * joint2 * transform).Translation;
-                            // p2 = Vector3.Transform(p2 - p1, coll.rotationOffset) + p1;
                             gizmo.Cur.Add(new Capsule(p1, p2, shape.R));
                         }
                         break;
@@ -129,7 +128,7 @@ public class CollisionShapePreset(GameObject gameObject, RszInstance data) : Com
                             var shape = (TaperedCapsule)preset.shape!;
                             var p1 = (Matrix4x4.CreateTranslation(shape.p0) * joint1 * transform).Translation;
                             var p2 = (Matrix4x4.CreateTranslation(shape.p1) * joint2 * transform).Translation;
-                            gizmo.Cur.Add(new Cone(p1, shape.r0, p2, shape.r1));
+                            gizmo.Cur.Add(new TaperedCapsule(p1, shape.r0, p2, shape.r1));
                         }
                         break;
                     case ReeLib.Clsp.CollisionShapeType.Sphere: {

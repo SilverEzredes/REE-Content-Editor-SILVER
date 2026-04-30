@@ -364,6 +364,7 @@ public class GizmoShapeBuilder : IDisposable
     public void Add(OBB shape) => builder.Add(shape);
     public void Add(Sphere shape) => builder.Add(shape);
     public void Add(Capsule shape) => builder.Add(shape);
+    public void Add(TaperedCapsule shape) => builder.Add(shape);
     public void Add(Cylinder shape) => builder.Add(shape);
     public void Add(Cone shape) => builder.Add(shape);
 
@@ -385,6 +386,10 @@ public class GizmoShapeBuilder : IDisposable
         => builder.Add(new Capsule(Vector3.Transform(shape.p0, offsetMatrix), Vector3.Transform(shape.p1, offsetMatrix), shape.R));
     public void Add(in Matrix4x4 point1Offset, in Matrix4x4 point2Offset, Capsule shape)
         => builder.Add(new Capsule(Vector3.Transform(shape.p0, point1Offset), Vector3.Transform(shape.p1, point2Offset), shape.R));
+    public void Add(in Matrix4x4 offsetMatrix, TaperedCapsule shape)
+        => builder.Add(new TaperedCapsule(Vector3.Transform(shape.p0, offsetMatrix), shape.r0, Vector3.Transform(shape.p1, offsetMatrix), shape.r1));
+    public void Add(in Matrix4x4 point1Offset, in Matrix4x4 point2Offset, TaperedCapsule shape)
+        => builder.Add(new TaperedCapsule(Vector3.Transform(shape.p0, point1Offset), shape.r0, Vector3.Transform(shape.p1, point2Offset), shape.r1));
     public void Add(in Matrix4x4 offsetMatrix, Cylinder shape)
         => builder.Add(new Cylinder(Vector3.Transform(shape.p0, offsetMatrix), Vector3.Transform(shape.p1, offsetMatrix), shape.r));
     public void Add(in Matrix4x4 point1Offset, in Matrix4x4 point2Offset, Cylinder shape)
