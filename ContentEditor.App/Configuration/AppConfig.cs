@@ -59,6 +59,7 @@ public class AppConfig : Singleton<AppConfig>
         public const string DisableFileCloseWarning = "disable_close_warning";
         public const string UseMDFGroupedParams = "use_mdf_grouped_params";
         public const string UseMDFCompactView = "use_mdf_compact_view";
+        public const string DisableScriptSafetyWarning = "disable_script_safety_warning";
 
         public const string RenderAxis = "render_axis";
         public const string RenderMeshes = "render_meshes";
@@ -219,6 +220,7 @@ public class AppConfig : Singleton<AppConfig>
     public readonly SettingWrapper<bool> DisableFileCloseWarning = new SettingWrapper<bool>(Keys.DisableFileCloseWarning, _lock, false);
     public readonly SettingWrapper<bool> UseMDFGroupedParams = new SettingWrapper<bool>(Keys.UseMDFGroupedParams, _lock, false);
     public readonly SettingWrapper<bool> UseMDFCompactView = new SettingWrapper<bool>(Keys.UseMDFCompactView, _lock, false);
+    public readonly SettingWrapper<bool> DisableScriptSafetyWarning = new SettingWrapper<bool>(Keys.DisableScriptSafetyWarning, _lock, false);
 
     public readonly SettingWrapper<int> PakDisplayModeValue = new SettingWrapper<int>(Keys.LogToFile, _lock, (int)FileDisplayMode.List);
     public FileDisplayMode PakDisplayMode { get => (FileDisplayMode)PakDisplayModeValue.Get(); set => PakDisplayModeValue.Set((int)value); }
@@ -277,6 +279,7 @@ public class AppConfig : Singleton<AppConfig>
     public void SetGameFilelist(GameIdentifier game, string path) => SetForGameAndSave(game.name, path, (cfg, val) => cfg.filelist = val);
 
     public string GetGameUserPath(GameIdentifier game) => Path.Combine(BookmarksFilepath.Get() ?? Path.Combine(AppDataPath, "thumbs"), game.name);
+    public string LuaUserPath => Path.Combine(BookmarksFilepath.Get() ?? AppDataPath, "lua");
 
     public bool HasAnyGameConfigured => _lock.Read(() => gameConfigs.Any(g => !string.IsNullOrEmpty(g.Value?.gamepath)));
     public IEnumerable<string> ConfiguredGames => _lock.Read(() => gameConfigs.Where(kv => !string.IsNullOrEmpty(kv.Value.gamepath)).Select(kv => kv.Key));
@@ -389,6 +392,7 @@ public class AppConfig : Singleton<AppConfig>
             (Keys.DisableFileCloseWarning, instance.DisableFileCloseWarning.value.ToString(), null),
             (Keys.UseMDFGroupedParams, instance.UseMDFGroupedParams.value.ToString(), null),
             (Keys.UseMDFCompactView, instance.UseMDFCompactView.value.ToString(), null),
+            (Keys.DisableScriptSafetyWarning, instance.DisableScriptSafetyWarning.value.ToString(), null),
 
             (Keys.RenderAxis, instance.RenderAxis.value.ToString(), null),
             (Keys.RenderMeshes, instance.RenderMeshes.value.ToString(), null),
@@ -585,6 +589,9 @@ public class AppConfig : Singleton<AppConfig>
                             break;
                         case Keys.UseMDFCompactView:
                             UseMDFCompactView.value = ReadBool(value);
+                            break;
+                        case Keys.DisableScriptSafetyWarning:
+                            DisableScriptSafetyWarning.value = ReadBool(value);
                             break;
                         case Keys.LastUpdateCheck:
                             if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var _updateCheck)) LastUpdateCheck.value = _updateCheck;

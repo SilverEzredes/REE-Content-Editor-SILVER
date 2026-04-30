@@ -327,6 +327,10 @@ public static class WindowHandlerFactory
             return new MeshViewer(env, file);
         }
 
+        if (file.Resource is LuaScript) {
+            return new LuaScriptEditor(env, file);
+        }
+
         if (file.Resource is not DummyFileResource) {
             return new RawDataEditor(env, file);
         }

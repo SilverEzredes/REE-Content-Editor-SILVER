@@ -929,17 +929,23 @@ public sealed class ResourceManager(PatchDataContainer config) : IDisposable
 
         string filename = $"{format}_{Random.Shared.Next().ToString("X")}.{ext}";
         if (workspace.Env.TryGetFileExtensionVersion(ext, out var version)) {
-            filename += "." + version;
+            ext += "." + version;
         }
         var fmt = new REFileFormat(format, version);
 
         var loader = GetLoaderForFile(filename, fmt);
         if (loader == null) {
-            Logger.Error($"No loader available for {format} file .{ext}.{version}");
+            Logger.Error($"No loader available for {format} file .{ext}");
             return null;
         }
 
-        var handle = CreateRawStreamFileHandle(filename, null, new MemoryStream());
+        return CreateNewFile(loader, format.ToString(), ext);
+    }
+
+    public FileHandle? CreateNewFile(IFileLoader loader, string baseName, string extension)
+    {
+        string filename = $"{baseName}_{Random.Shared.Next().ToString("X")}.{extension}";
+        var handle = CreateRawStreamFileHandle(filename, null, new MemoryStream(), true, FileHandleType.New);
         handle.Loader = loader;
         var newFileResource = loader.CreateNewFile(workspace, handle);
         if (newFileResource == null) {
@@ -995,11 +1001,13 @@ public sealed class ResourceManager(PatchDataContainer config) : IDisposable
         return handle;
     }
 
-    private FileHandle CreateRawStreamFileHandle(string filepath, string? nativePath, Stream stream, bool allowDisposeStream = true)
+    private FileHandle CreateRawStreamFileHandle(string filepath, string? nativePath, Stream stream, bool allowDisposeStream = true, FileHandleType? handleTypeOverrie = null)
     {
         FileHandleType handleType;
         string? fileSource = null;
-        if (stream is MemoryStream) {
+        if (handleTypeOverrie.HasValue) {
+            handleType = handleTypeOverrie.Value;
+        } else if (stream is MemoryStream) {
             handleType = FileHandleType.Memory;
             fileSource = "PAK file";
         } else {

@@ -20,8 +20,8 @@ public abstract class FileEditor : IWindowHandler, IRectWindow, IDisposable, IFo
 
     protected virtual bool CanSave => true;
 
-    public Vector2 Size { get; private set; }
-    public Vector2 Position { get; private set; }
+    public Vector2 Size => context.Get<WindowData>().Size;
+    public Vector2 Position => context.Get<WindowData>().Position;
 
     protected bool failedToReadfile = false;
     protected ImGuiWindowFlags windowFlags;
@@ -86,8 +86,6 @@ public abstract class FileEditor : IWindowHandler, IRectWindow, IDisposable, IFo
             EditorWindow.CurrentWindow?.CloseSubwindow(data);
             return;
         }
-        Size = data.Size;
-        Position = data.Position;
 
         ImGui.SameLine();
         OnIMGUI();
@@ -119,6 +117,8 @@ public abstract class FileEditor : IWindowHandler, IRectWindow, IDisposable, IFo
         }
     }
 
+    protected virtual string GetSavePathSuggestion(FileHandle handle) => handle.Filepath;
+
     protected virtual void DrawFileControls(WindowData data)
     {
         if (failedToReadfile) return;
@@ -131,7 +131,7 @@ public abstract class FileEditor : IWindowHandler, IRectWindow, IDisposable, IFo
             var workspace = data.Context.GetWorkspace()!;
             ImGui.SameLine();
             if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_SaveAs, new[] { Colors.IconPrimary, Colors.IconPrimary, Colors.IconSecondary, Colors.IconSecondary, Colors.IconPrimary })) {
-                PlatformUtils.ShowSaveFileDialog((path) => SaveTo(path, true), Handle.Filepath);
+                PlatformUtils.ShowSaveFileDialog((path) => SaveTo(path, true), GetSavePathSuggestion(Handle));
             }
             ImguiHelpers.Tooltip("Save As...");
             ImGui.SameLine();
@@ -207,7 +207,7 @@ public abstract class FileEditor : IWindowHandler, IRectWindow, IDisposable, IFo
 
     public void SaveAs()
     {
-        PlatformUtils.ShowSaveFileDialog((path) => SaveTo(path, false), Handle.Filepath);
+        PlatformUtils.ShowSaveFileDialog((path) => SaveTo(path, false), GetSavePathSuggestion(Handle));
     }
 
     public void SaveToBundle(ContentWorkspace workspace)
@@ -331,15 +331,20 @@ public abstract class FileEditor : IWindowHandler, IRectWindow, IDisposable, IFo
 
     protected abstract void DrawFileContents();
 
-    public bool RequestClose()
+    protected virtual void PostFileConfirmation()
     {
-        if (Handle.Modified || HasUnsavedChanges) {
-            var ownerWindow = EditorWindow.CurrentWindow!;
-            ownerWindow.AddSubwindow(new SaveFileConfirmation(
-                "Unsaved changes", "You have unsaved changes in this file, do you wish to save the file first?",
-                [Handle],
-                this,
-                () => {
+
+    }
+    protected void ShowSaveConfirmation(bool closeAfterConfirm)
+    {
+        var ownerWindow = EditorWindow.CurrentWindow!;
+        ownerWindow.AddSubwindow(new SaveFileConfirmation(
+            "Unsaved changes", "You have unsaved changes in this file, do you wish to save the file first?",
+            [Handle],
+            this,
+            () => {
+                PostFileConfirmation();
+                if (closeAfterConfirm) {
                     var file = Handle;
                     ownerWindow.CloseSubwindow(this);
                     ownerWindow.InvokeFromUIThread(() => {
@@ -347,8 +352,15 @@ public abstract class FileEditor : IWindowHandler, IRectWindow, IDisposable, IFo
                             ownerWindow.Workspace?.ResourceManager.CloseFile(file);
                         }
                     });
-                })
-            );
+                }
+            })
+        );
+    }
+
+    public bool RequestClose()
+    {
+        if (Handle.Modified || HasUnsavedChanges) {
+            ShowSaveConfirmation(true);
             return true;
         }
         return false;

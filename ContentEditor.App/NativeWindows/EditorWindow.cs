@@ -258,7 +258,7 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
 
         var handler = WindowHandlerFactory.CreateFileResourceHandler(workspace, file);
         if (handler != null) {
-            if (file.HandleType != FileHandleType.Embedded) {
+            if (file.HandleType != FileHandleType.Embedded && file.HandleType != FileHandleType.New) {
                 AppConfig.Settings.RecentFiles.AddRecent(workspace.Game, file.Filepath);
                 AppConfig.Settings.GetRecentForFormat(file.Format.format)?.AddRecent(workspace.Game, file.Filepath);
             }
@@ -473,6 +473,11 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
             ImGui.Bullet();
         }
         if (ImGui.BeginMenu("File")) {
+            if (ImGui.BeginMenu("Create New")) {
+                if (ImGui.MenuItem("Lua Script")) AddFileEditor(Workspace.ResourceManager.CreateNewFile(LuaFileLoader.Instance, "Script", "lua")!);
+                ImGui.EndMenu();
+            }
+            ImGui.Separator();
             if (ImGui.MenuItem("Open ...")) {
                 ShowFileOpenDialog();
             }
