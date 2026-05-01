@@ -32,7 +32,7 @@ public class AppUIService(EditorWindow defaultWindow, ContentWorkspace workspace
         var window = (context?.GetNativeWindow() ?? defaultWindow);
         foreach (var imWindow in window.ActiveImguiWindows) {
             if (imWindow.Context.uiHandler is FileEditor fe && fe.Handle == file) {
-                fe.SaveToBundle(workspace);
+                fe.SaveToBundle(workspace, false);
                 return;
             }
         }

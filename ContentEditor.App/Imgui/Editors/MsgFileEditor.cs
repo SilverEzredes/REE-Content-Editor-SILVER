@@ -17,7 +17,7 @@ public class MsgFileEditor : FileEditor, IWorkspaceContainer
     public override string HandlerName => $"{AppIcons.SI_FileType_MSG} Message";
     public string Filename => Handle.Filepath;
 
-    public MsgFile File { get; }
+    public MsgFile File => Handle.GetFile<MsgFile>();
 
     public ContentWorkspace Workspace { get; }
 
@@ -34,7 +34,6 @@ public class MsgFileEditor : FileEditor, IWorkspaceContainer
     public MsgFileEditor(ContentWorkspace env, FileHandle file) : base(file)
     {
         Workspace = env;
-        File = file.GetFile<MsgFile>();
     }
 
     private sealed class MessageNameComparer : Singleton<MessageNameComparer>, IComparer<MessageEntry>
