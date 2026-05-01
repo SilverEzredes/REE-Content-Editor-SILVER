@@ -10,7 +10,7 @@ public class BoneNameHandler(Func<UIContext, uint>? hashGetter = null, Action<UI
     public unsafe void OnIMGUI(UIContext context)
     {
         ImGui.PushID(context.label);
-        var bones = context.FindHandlerInParents<IBoneReferenceHolder>();
+        var bones = context.FindHandlerInParents<IBoneReferenceHolder>() ?? context.GetWindowHandler() as IBoneReferenceHolder;
         if (bones != null && bones.GetBones().Any()) {
             var width = ImGui.CalcItemWidth();
             var forceRefreshList = ImGui.Button($"{AppIcons.SI_Update}");

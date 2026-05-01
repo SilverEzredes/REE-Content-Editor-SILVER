@@ -407,6 +407,21 @@ public class WindowBase : IDisposable, IDragDropTarget, IRectWindow
         }
     }
 
+    public void RequestClose(bool force)
+    {
+        if (!force) {
+            if (RequestAllowClose()) {
+                isClosing.Set(); // Here we trigger the ManualEvent to let those waiting on it know the window is closing.
+                _window.ContinueEvents(); // We wake up the Main Thread here 'cause we'll be done soon.
+                // _window.Dispose();
+                _window.IsClosing = true;
+            }
+        } else {
+            isClosing.Set(); // Here we trigger the ManualEvent to let those waiting on it know the window is closing.
+            _window.IsClosing = true;
+        }
+    }
+
     protected virtual bool RequestAllowClose()
     {
         return true;

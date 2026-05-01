@@ -35,5 +35,6 @@ public static class FileFilters
     public static readonly FileFilter[] ImageFiles = [new FileFilter("Supported images", "jpg", "png", "jpeg", "bmp"), new FileFilter("PNG", "png"), new FileFilter("JPG", "jpg", "jpeg"), new FileFilter("BMP", "bmp")];
 
     public static readonly FileFilter[] ThemeFile = [new FileFilter("Theme File", "theme.txt")];
+    public static readonly FileFilter[] LuaFile = [new FileFilter("Lua File", "lua")];
 }
 

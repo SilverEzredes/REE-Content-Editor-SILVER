@@ -97,7 +97,7 @@ public sealed class FileHandle(string path, Stream stream, FileHandleType handle
             var success = Loader.Save(workspace, this, newFilepath ?? Filepath);
             if (!success) return false;
             if (newFilepath == null) {
-                if (HandleType == FileHandleType.Memory) {
+                if (HandleType is FileHandleType.Memory or FileHandleType.New) {
                     // assumption: a disk file has an empty file source, since the FilePath is already the source
                     // a bundle file will always have the bundle name in the source
                     HandleType = FileSource != null && Path.IsPathFullyQualified(FileSource) ? FileHandleType.Disk : FileHandleType.Bundle;
@@ -154,6 +154,7 @@ public enum FileHandleType
     Bundle,
     Memory,
     Embedded,
+    New,
 }
 
 public interface IFileHandleReferenceHolder
