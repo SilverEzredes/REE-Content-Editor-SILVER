@@ -202,7 +202,7 @@ public class MdfFileImguiHandler : IObjectUIHandler
     {
         var file = context.Get<MdfFile>();
 
-        ImGui.BeginChild("##MaterialList", new Vector2(250f, ImGui.GetContentRegionAvail().Y));
+        ImGui.BeginChild("##MaterialList", new Vector2(250f, ImGui.GetContentRegionAvail().Y), ImGuiChildFlags.ResizeX);
         ShowMaterialList(context, file);
         ImGui.EndChild();
 
@@ -343,7 +343,7 @@ public class MdfFileImguiHandler : IObjectUIHandler
         }
 
         var mat = file.Materials[selectedIDX];
-        var responsiveWidth = UI.UIScale * 800;
+        var responsiveWidth = UI.UIScale * 1000;
         var avail = ImGui.GetContentRegionAvail();
         if (avail.X < responsiveWidth || AppConfig.Instance.UseMDFCompactView) {
             if (ImGui.BeginTabBar("##MaterialData")) {
