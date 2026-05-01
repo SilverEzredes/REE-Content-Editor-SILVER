@@ -47,6 +47,11 @@ public partial class LuaRszInstance(RszInstance instance) : ILuaUserData, ILuaOb
             var field = type.fields[i];
             int fieldIndex = i;
             getters[field.name] = (self) => LuaWrapper.ToLua(self.Values[fieldIndex]);
+            var csType = field.type switch {
+                RszFieldType.String or RszFieldType.RuntimeType => typeof(string),
+                RszFieldType.Object or RszFieldType.Struct => typeof(RszInstance),
+                _ => RszInstance.RszFieldTypeToCSharpType(field.type),
+            };
             if (field.array) {
                 switch (field.type) {
                     case RszFieldType.Object:
@@ -70,7 +75,6 @@ public partial class LuaRszInstance(RszInstance instance) : ILuaUserData, ILuaOb
                         // don't add setters here, we have no idea what it's actually supposed to be
                         break;
                     default: {
-                            var csType = RszInstance.RszFieldTypeToCSharpType(field.type);
                             // setters[field.name] = (self, value) => self.Values[fieldIndex] = LuaWrapper.FromLua(value, csType) ?? Activator.CreateInstance(csType)!;
                             setters[field.name] = (self, value) => {
                                 var list = new List<object>();
@@ -98,7 +102,6 @@ public partial class LuaRszInstance(RszInstance instance) : ILuaUserData, ILuaOb
                         // don't add setters here, we have no idea what it's actually supposed to be
                         break;
                     default: {
-                            var csType = RszInstance.RszFieldTypeToCSharpType(field.type);
                             setters[field.name] = (self, value) => self.Values[fieldIndex] = LuaWrapper.FromLua(value, csType) ?? Activator.CreateInstance(csType)!;
                             break;
                         }
