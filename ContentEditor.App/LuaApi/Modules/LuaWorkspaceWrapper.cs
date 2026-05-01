@@ -15,6 +15,9 @@ public partial class LuaWorkspaceWrapper(ContentWorkspace workspace)
     [LuaMember("files")]
     public LuaResourceManager Files { get; } = new LuaResourceManager(workspace.ResourceManager, workspace);
 
+    [LuaMember("types")]
+    public LuaTypeDatabase Types { get; } = new LuaTypeDatabase(workspace.Env);
+
     [LuaMember("current_bundle")]
     public LuaBundleWrapper? CurrentBundle { get; } = workspace.CurrentBundle == null ? null : new LuaBundleWrapper(workspace.CurrentBundle);
 
@@ -22,6 +25,6 @@ public partial class LuaWorkspaceWrapper(ContentWorkspace workspace)
     public LuaTable FindFiles(string pathOrPattern)
     {
         var paths = workspace.Env.ListFile?.GetFiles(pathOrPattern) ?? [];
-        return LuaJson.ToLua(paths);
+        return LuaWrapper.ToLuaTable(paths);
     }
 }

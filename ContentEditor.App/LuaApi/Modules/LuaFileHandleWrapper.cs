@@ -5,18 +5,31 @@ using ReeLib;
 namespace ContentEditor.App.Lua;
 
 [LuaObject]
-public partial class LuaFileHandleWrapper(FileHandle file, ContentWorkspace workspace)
+public partial class LuaFileHandleWrapper : ILuaObjectWrapper
 {
+    private readonly FileHandle file;
+    private readonly ContentWorkspace workspace;
+
+    public LuaFileHandleWrapper(FileHandle file, ContentWorkspace workspace)
+    {
+        this.file = file;
+        this.workspace = workspace;
+        LuaReflectionObject.CreateObjectMixedMetaTable(this);
+    }
+
     public FileHandle File => file;
+    object ILuaObjectWrapper.Object => file;
+
     public static LuaValue GetFileResource(LuaFileHandleWrapper file)
     {
         switch (file.File.Format.format) {
             case ReeLib.KnownFileFormats.Message:
                 return new LuaMsg(file);
         }
-        return LuaValue.Nil;
+        return new LuaDefaultResource(file);
     }
 
+    // private LuaValue? resource;
     [LuaMember("resource")]
     public LuaValue Resource => GetFileResource(this);
 
@@ -55,14 +68,25 @@ public partial class LuaFileHandleWrapper(FileHandle file, ContentWorkspace work
 }
 
 [LuaObject]
-public partial class LuaBaseResource(LuaFileHandleWrapper file)
+public partial class LuaBaseResource(LuaFileHandleWrapper file) : ILuaObjectWrapper
 {
     [LuaMember("handle")]
     public LuaFileHandleWrapper Handle { get; } = file;
+
+    public object Object => Handle.File.Resource;
 }
 
 [LuaObject]
-public partial class LuaBaseResource<TFile>(LuaFileHandleWrapper file) : LuaBaseResource(file) where TFile : BaseFile
+public partial class LuaFileResource<TFile>(LuaFileHandleWrapper file) : LuaBaseResource(file) where TFile : BaseFile
 {
     public TFile File { get; } = file.File.GetFile<TFile>();
+}
+
+[LuaObject]
+public partial class LuaDefaultResource : LuaBaseResource
+{
+    public LuaDefaultResource(LuaFileHandleWrapper file) : base(file)
+    {
+        LuaReflectionObject.CreateObjectMixedMetaTable(this);
+    }
 }

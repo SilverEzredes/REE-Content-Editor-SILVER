@@ -53,10 +53,10 @@ public partial class LuaJson
         }
     }
 
-    public static string LuaToString(LuaValue value)
+    public static string LuaToString(LuaValue value, JsonSerializerOptions? options = default)
     {
         if (value.Type == LuaValueType.String) return value.ToString();
-        return LuaToJson(value)?.ToString() ?? "";
+        return LuaToJson(value, options)?.ToString() ?? "";
     }
 
     public static LuaValue JsonToLua(JsonNode? node)
@@ -97,28 +97,7 @@ public partial class LuaJson
         }
     }
 
-
-    public static LuaValue ToLua(object? obj)
-    {
-        if (obj == null) return LuaValue.Nil;
-        var type = obj.GetType();
-        if (type.IsArray) {
-            return ToLua((object[])obj);
-        }
-        return LuaValue.FromObject(obj);
-    }
-
-    public static LuaTable ToLua<T>(T[] array)
-    {
-        var result = new LuaTable(array.Length, 0);
-        for (int i = 0; i < array.Length; i++) {
-            var item = array[i];
-            result[LuaValue.FromObject(i + 1)] = ToLua(item);
-        }
-        return result;
-    }
-
-    public static JsonNode? LuaToJson(LuaValue value)
+    public static JsonNode? LuaToJson(LuaValue value, JsonSerializerOptions? options = default)
     {
         switch (value.Type) {
             case LuaValueType.Nil: return null;
@@ -158,11 +137,28 @@ public partial class LuaJson
                     }
                 }
                 break;
-            case LuaValueType.LightUserData:
-            case LuaValueType.UserData: {
+            case LuaValueType.LightUserData: {
                     var obj = value.Read<object>();
                     if (obj is JsonNode jn) return jn;
-                    return JsonSerializer.SerializeToNode(obj);
+                    try {
+                        return JsonSerializer.SerializeToNode(obj, options);
+                    } catch (Exception) {
+                        return JsonSerializer.SerializeToNode(LuaWrapper.ToLua(obj), options);
+                    }
+                }
+            case LuaValueType.UserData: {
+                    if (value.TryRead<ILuaUserData>(out var lud) && lud is ILuaObjectWrapper obj) {
+                        if (obj.Object is JsonNode jn) return jn;
+                        if (obj.Object is not FileHandleBase) {
+                            try {
+                                return JsonSerializer.SerializeToNode(obj.Object, options);
+                            } catch (Exception) {
+                                // ignore
+                            }
+                        }
+                        return obj.Object.ToString();
+                    }
+                    return value.ToString();
                 }
         }
 

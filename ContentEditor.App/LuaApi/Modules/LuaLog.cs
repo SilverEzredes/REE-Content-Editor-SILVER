@@ -12,7 +12,7 @@ public partial class LuaLog
 
     public LuaFunction LogFunction { get; }
 
-    public LuaLog()
+    public LuaLog(JsonSerializerOptions options)
     {
         LogFunction = new LuaFunction("info", (context, ct) => {
             sb.Clear();
@@ -21,7 +21,7 @@ public partial class LuaLog
                 if (i++ != 0) {
                     sb.Append('\t');
                 }
-                sb.Append(LuaJson.LuaToString(arg));
+                sb.Append(LuaJson.LuaToString(arg, options));
             }
             Logger.Info(sb.ToString());
             sb.Clear();
