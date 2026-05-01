@@ -281,7 +281,7 @@ public class ResourcePathPicker : IObjectUIHandler
         });
     }
 
-    public static void SaveFileToBundle(ContentWorkspace workspace, FileHandle file, BundleSaveFileCallback saveCallback, bool closeFile = true)
+    public static void SaveFileToBundle(ContentWorkspace workspace, FileHandle file, BundleSaveFileCallback saveCallback, bool closeFile = true, bool useNewNativePath = false)
     {
         var bundle = workspace.CurrentBundle;
         if (bundle == null) {
@@ -323,6 +323,10 @@ public class ResourcePathPicker : IObjectUIHandler
                 Logger.Info($"Target bundle file {path} already exists, replacing it.");
             }
 
+            if (useNewNativePath) {
+                nativeFilepath = workspace.Env.PrependBasePath(localFilepath);
+            }
+
             if (bundle.TryFindResourceByLocalPath(localFilepath, out var previousListing) && previousListing.Target != nativeFilepath) {
                 Logger.Info($"File is already stored in the bundle.json. Re-using existing file's native filepath.");
                 nativeFilepath = previousListing.Target;
@@ -331,6 +335,10 @@ public class ResourcePathPicker : IObjectUIHandler
             if (!saveCallback.Invoke(path, localFilepath, nativeFilepath)) {
                 Logger.Error("Failed to save file to bundle in path " + localFilepath);
                 return;
+            }
+
+            if (useNewNativePath) {
+                workspace.UI.ShowMessage($"Saved as new file to bundle with native path:\n{nativeFilepath}\nPath can be modified through the Bundle Manager");
             }
 
             if (!bundle.TryFindResourceByNativePath(nativeFilepath, out _)) {

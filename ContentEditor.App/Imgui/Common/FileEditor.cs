@@ -154,9 +154,15 @@ public abstract class FileEditor : IWindowHandler, IRectWindow, IDisposable, IFo
                 if (!Handle.IsInBundle(workspace, workspace.CurrentBundle)) {
                     ImGui.SameLine();
                     if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_BundleSaveTo, new[] { Colors.IconPrimary, Colors.IconPrimary, Colors.IconPrimary, Colors.IconSecondary, Colors.IconPrimary })) {
-                        SaveToBundle(workspace);
+                        SaveToBundle(workspace, false);
                     }
                     ImguiHelpers.Tooltip("Save to Bundle");
+
+                    ImGui.SameLine();
+                    if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_BundleSaveTo, new[] { Colors.IconPrimary, Colors.IconPrimary, Colors.IconPrimary, Colors.IconSecondary, Colors.IconPrimary }, "_copy")) {
+                        SaveToBundle(workspace, true);
+                    }
+                    ImguiHelpers.Tooltip("Save to Bundle as New File");
                 } else if (workspace.CurrentBundle.ResourceListing == null || !workspace.CurrentBundle.TryFindResourceListing(Handle.NativePath ?? "", out var resourceListing)) {
                     ImGui.SameLine();
                     if (string.IsNullOrEmpty(Handle.NativePath) && Handle.Modified) {
@@ -210,11 +216,11 @@ public abstract class FileEditor : IWindowHandler, IRectWindow, IDisposable, IFo
         PlatformUtils.ShowSaveFileDialog((path) => SaveTo(path, false), GetSavePathSuggestion(Handle));
     }
 
-    public void SaveToBundle(ContentWorkspace workspace)
+    public void SaveToBundle(ContentWorkspace workspace, bool saveAsNewFile)
     {
         ResourcePathPicker.SaveFileToBundle(workspace, Handle, (savePath, localPath, nativePath) => {
             return SaveTo(savePath, true, nativePath: nativePath);
-        }, closeFile: false);
+        }, closeFile: false, useNewNativePath: saveAsNewFile);
     }
 
     protected void ShowFileJsonCopyPasteButtons<T>(JsonSerializerOptions? jsonOptions) where T : BaseFile
