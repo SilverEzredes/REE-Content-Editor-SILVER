@@ -159,7 +159,7 @@ public abstract class FileEditor : IWindowHandler, IRectWindow, IDisposable, IFo
                     ImguiHelpers.Tooltip("Save to Bundle");
 
                     ImGui.SameLine();
-                    if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_BundleSaveTo, new[] { Colors.IconPrimary, Colors.IconPrimary, Colors.IconPrimary, Colors.IconSecondary, Colors.IconPrimary }, "_copy")) {
+                    if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_BundleSaveAsNew, new[] { Colors.IconPrimary, Colors.IconPrimary, Colors.IconPrimary, Colors.IconPrimary, Colors.IconSecondary, Colors.IconPrimary })) {
                         SaveToBundle(workspace, true);
                     }
                     ImguiHelpers.Tooltip("Save to Bundle as New File");
