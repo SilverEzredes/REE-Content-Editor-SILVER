@@ -1001,12 +1001,12 @@ public sealed class ResourceManager(PatchDataContainer config) : IDisposable
         return handle;
     }
 
-    private FileHandle CreateRawStreamFileHandle(string filepath, string? nativePath, Stream stream, bool allowDisposeStream = true, FileHandleType? handleTypeOverrie = null)
+    private FileHandle CreateRawStreamFileHandle(string filepath, string? nativePath, Stream stream, bool allowDisposeStream = true, FileHandleType? handleTypeOverride = null)
     {
         FileHandleType handleType;
         string? fileSource = null;
-        if (handleTypeOverrie.HasValue) {
-            handleType = handleTypeOverrie.Value;
+        if (handleTypeOverride.HasValue) {
+            handleType = handleTypeOverride.Value;
         } else if (stream is MemoryStream) {
             handleType = FileHandleType.Memory;
             fileSource = "PAK file";

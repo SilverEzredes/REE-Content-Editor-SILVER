@@ -4,8 +4,10 @@ using Lua;
 namespace ContentEditor.App.Lua;
 
 [LuaObject]
-public partial class LuaBundleWrapper(Bundle bundle)
+public partial class LuaBundleWrapper(Bundle bundle) : ILuaObjectWrapper
 {
+    public object Object => bundle;
+
     [LuaMember("name")]
     public string Name { get => bundle.Name; set => bundle.Name = value; }
 

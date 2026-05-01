@@ -5,8 +5,13 @@ using ReeLib.Msg;
 namespace ContentEditor.App.Lua;
 
 [LuaObject]
-public partial class LuaMsg(LuaFileHandleWrapper file) : LuaBaseResource<MsgFile>(file)
+public partial class LuaMsg : LuaFileResource<MsgFile>
 {
+    public LuaMsg(LuaFileHandleWrapper file) : base(file)
+    {
+        LuaReflectionObject.CreateObjectMixedMetaTable(this);
+    }
+
     [LuaMember("translate")]
     public string? GetTranslation(string key) => File.FindEntryByKey(key)?.Strings[(int)Language.English];
 
