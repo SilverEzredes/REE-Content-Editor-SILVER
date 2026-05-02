@@ -911,7 +911,7 @@ public class MeshViewer : FileEditor, IDisposable, IFocusableFileHandleReference
         ImGui.SameLine();
         AppImguiHelpers.WikiLinkButton("https://github.com/kagenocookie/REE-Content-Editor/wiki/Animation-tools", true);
 
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize("Animation File").X);
+        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize("Animation File").X - ImGui.GetStyle().ScrollbarSize);
         ctx.ShowAnimSettings(meshContexts, false);
     }
 
@@ -1526,6 +1526,7 @@ internal class MeshViewerContext(MeshViewer viewer, UIContext ui, FileHandle fil
     {
         if (Animator == null) return;
 
+        ImGui.PushItemWidth(ImGui.CalcItemWidth());
         if (showControllerSelection) {
             string parentLabel = "Animation Controller";
             if (Animator.owner != Animator) {
@@ -1611,7 +1612,7 @@ internal class MeshViewerContext(MeshViewer viewer, UIContext ui, FileHandle fil
             ImguiHelpers.Tooltip("Match Case");
 
             ImGui.SameLine();
-            ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X);
+            ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ImGui.GetStyle().ScrollbarSize);
             AppImguiHelpers.ClearableInputText("##MotFilter"u8, $"{AppIcons.SI_GenericMagnifyingGlass} Filter Animations", ref motFilter, 200);
 
             ImGui.Spacing();
@@ -1647,6 +1648,7 @@ internal class MeshViewerContext(MeshViewer viewer, UIContext ui, FileHandle fil
         } else if (animator?.File != null) {
             ImGui.TextColored(Colors.Note, "Selected file contains no playable animations");
         }
+        ImGui.PopItemWidth();
     }
 
     public void ShowTransformUI(List<MeshViewerContext> meshContexts)
