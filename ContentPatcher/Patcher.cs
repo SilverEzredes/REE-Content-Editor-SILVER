@@ -24,6 +24,8 @@ public class Patcher : IDisposable
     public string? OutputFilepath { get; set; }
     public bool IsPublishingMod { get; set; }
 
+    public bool StoreGDeflateTexturesAsSubPak { get; set; } = false;
+
     private string? LoosePublishMetdataFilepath => Directory.Exists(OutputFilepath) ? Path.Combine(OutputFilepath, "_patch_metadata.json") : null;
 
     public Patcher(GameConfig config)
@@ -149,7 +151,7 @@ public class Patcher : IDisposable
         }
 
         // prepare all modified files
-        var needsSubPak = Env.RequiresSubPaksForTextures;
+        var needsSubPak = StoreGDeflateTexturesAsSubPak && Env.RequiresSubPaksForTextures;
         var hasTextures = false;
         foreach (var file in workspace!.ResourceManager.GetModifiedResourceFiles()) {
             var nativePath = file.NativePath ?? file.Filepath;

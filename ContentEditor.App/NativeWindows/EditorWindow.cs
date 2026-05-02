@@ -859,6 +859,7 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
                 patcher.OutputFilepath = outputPath;
             }
             patcher.IsPublishingMod = singleBundle != null;
+            patcher.StoreGDeflateTexturesAsSubPak = AppConfig.Instance.UseSubPakForLooseTextures;
             return patcher.Execute(singleBundle == null);
         } catch (Exception e) {
             Logger.Error(e, "Failed to execute patcher");

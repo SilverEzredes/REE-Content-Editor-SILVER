@@ -60,6 +60,7 @@ public class AppConfig : Singleton<AppConfig>
         public const string UseMDFGroupedParams = "use_mdf_grouped_params";
         public const string UseMDFCompactView = "use_mdf_compact_view";
         public const string DisableScriptSafetyWarning = "disable_script_safety_warning";
+        public const string UseSubPakForLooseTextures = "use_sub_pak_for_textures";
 
         public const string RenderAxis = "render_axis";
         public const string RenderMeshes = "render_meshes";
@@ -221,6 +222,7 @@ public class AppConfig : Singleton<AppConfig>
     public readonly SettingWrapper<bool> UseMDFGroupedParams = new SettingWrapper<bool>(Keys.UseMDFGroupedParams, _lock, false);
     public readonly SettingWrapper<bool> UseMDFCompactView = new SettingWrapper<bool>(Keys.UseMDFCompactView, _lock, false);
     public readonly SettingWrapper<bool> DisableScriptSafetyWarning = new SettingWrapper<bool>(Keys.DisableScriptSafetyWarning, _lock, false);
+    public readonly SettingWrapper<bool> UseSubPakForLooseTextures = new SettingWrapper<bool>(Keys.UseSubPakForLooseTextures, _lock, false);
 
     public readonly SettingWrapper<int> PakDisplayModeValue = new SettingWrapper<int>(Keys.LogToFile, _lock, (int)FileDisplayMode.List);
     public FileDisplayMode PakDisplayMode { get => (FileDisplayMode)PakDisplayModeValue.Get(); set => PakDisplayModeValue.Set((int)value); }
@@ -393,6 +395,7 @@ public class AppConfig : Singleton<AppConfig>
             (Keys.UseMDFGroupedParams, instance.UseMDFGroupedParams.value.ToString(), null),
             (Keys.UseMDFCompactView, instance.UseMDFCompactView.value.ToString(), null),
             (Keys.DisableScriptSafetyWarning, instance.DisableScriptSafetyWarning.value.ToString(), null),
+            (Keys.UseSubPakForLooseTextures, instance.UseSubPakForLooseTextures.value.ToString(), null),
 
             (Keys.RenderAxis, instance.RenderAxis.value.ToString(), null),
             (Keys.RenderMeshes, instance.RenderMeshes.value.ToString(), null),
@@ -592,6 +595,9 @@ public class AppConfig : Singleton<AppConfig>
                             break;
                         case Keys.DisableScriptSafetyWarning:
                             DisableScriptSafetyWarning.value = ReadBool(value);
+                            break;
+                        case Keys.UseSubPakForLooseTextures:
+                            UseSubPakForLooseTextures.value = ReadBool(value);
                             break;
                         case Keys.LastUpdateCheck:
                             if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var _updateCheck)) LastUpdateCheck.value = _updateCheck;
