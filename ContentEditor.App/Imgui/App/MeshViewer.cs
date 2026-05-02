@@ -1294,14 +1294,18 @@ internal class MeshViewerContext(MeshViewer viewer, UIContext ui, FileHandle fil
         var mdfPath = meshBasePath + ext;
         if (!File.Exists(mdfPath)) mdfPath = meshBasePath + "_Mat" + ext;
 
-        if (!File.Exists(mdfPath) && Handle.NativePath != null) {
-            meshBasePath = PathUtils.GetFilepathWithoutExtensionOrVersion(Handle.NativePath).ToString();
-            if (viewer.Workspace.ResourceManager.TryResolveGameFile(meshBasePath + ext, out _)) {
-                mdfPath = meshBasePath + ext;
-            } else if (viewer.Workspace.ResourceManager.TryResolveGameFile(meshBasePath + "_Mat" + ext, out _)) {
-                mdfPath = meshBasePath + "_Mat" + ext;
-            } else if (viewer.Workspace.ResourceManager.TryResolveGameFile(meshBasePath + "_00" + ext, out _)) {
-                mdfPath = meshBasePath + "_00" + ext;
+        if (!File.Exists(mdfPath)) {
+            if (Handle.NativePath != null) {
+                meshBasePath = PathUtils.GetFilepathWithoutExtensionOrVersion(Handle.NativePath).ToString();
+                if (viewer.Workspace.ResourceManager.TryResolveGameFile(meshBasePath + ext, out _)) {
+                    mdfPath = meshBasePath + ext;
+                } else if (viewer.Workspace.ResourceManager.TryResolveGameFile(meshBasePath + "_Mat" + ext, out _)) {
+                    mdfPath = meshBasePath + "_Mat" + ext;
+                } else if (viewer.Workspace.ResourceManager.TryResolveGameFile(meshBasePath + "_00" + ext, out _)) {
+                    mdfPath = meshBasePath + "_00" + ext;
+                } else {
+                    mdfPath = "";
+                }
             } else {
                 mdfPath = "";
             }

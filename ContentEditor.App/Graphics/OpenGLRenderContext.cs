@@ -293,8 +293,11 @@ public sealed class OpenGLRenderContext(GL gl) : RenderContext
         var filehash = PakUtils.GetFilepathHash(filepath);
         if (TextureRefs.TryAddReference(filehash, out var handle)) {
             return handle.Resource;
-        } else if (ResourceManager.TryResolveGameFile(filepath, out var texHandle)) {
-            if (resolveStreaming) {
+        } else if (
+            ResourceManager.TryResolveGameFile(filepath, out var texHandle) ||
+            (Path.IsPathFullyQualified(filepath) && File.Exists(filepath) && ResourceManager.TryGetOrLoadFile(filepath, out texHandle))
+        ) {
+            if (resolveStreaming && texHandle.Format.format == KnownFileFormats.Texture) {
                 var texFile = texHandle.GetFile<TexFile>();
                 if (texFile.Header.flags.HasFlag(ReeLib.Tex.TexFlags.IsStreaming)) {
                     string streamingPath = PathUtils.GetStreamingInternalPath(filepath);
