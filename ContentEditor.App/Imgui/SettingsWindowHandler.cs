@@ -121,11 +121,7 @@ public class SettingsWindowHandler : IWindowHandler, IKeepEnabledWhileSaving
             var group = groups[i];
             bool isGroupSelected = selectedGroup == i;
 
-            if (isGroupSelected) {
-                ImGui.PushStyleColor(ImGuiCol.Text, Colors.TextActive);
-            } else {
-                ImGui.PushStyleColor(ImGuiCol.Text, ImguiHelpers.GetColor(ImGuiCol.Text));
-            }
+            ImGui.PushStyleColor(ImGuiCol.Text, isGroupSelected ? Colors.TextActive : ImguiHelpers.GetColor(ImGuiCol.Text));
             bool openSubGroup = ImGui.TreeNodeEx(group.Name, ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.FramePadding);
             ImGui.PopStyleColor();
 
@@ -139,11 +135,7 @@ public class SettingsWindowHandler : IWindowHandler, IKeepEnabledWhileSaving
                     var sub = group.SubGroups[j];
                     bool isSubSelected = isGroupSelected && selectedSubGroup == j;
 
-                    if (isSubSelected) {
-                        ImGui.PushStyleColor(ImGuiCol.Text, Colors.TextActive);
-                    } else {
-                        ImGui.PushStyleColor(ImGuiCol.Text, ImguiHelpers.GetColor(ImGuiCol.Text));
-                    }
+                    ImGui.PushStyleColor(ImGuiCol.Text, isSubSelected ? Colors.TextActive : ImguiHelpers.GetColor(ImGuiCol.Text));
                     ImGui.Bullet();
                     ImGui.PopStyleColor();
                     ImGui.SameLine();
@@ -160,69 +152,53 @@ public class SettingsWindowHandler : IWindowHandler, IKeepEnabledWhileSaving
     }
     private void ShowSubGroupContent(SettingGroup group)
     {
-        if (ImGui.BeginTabBar("##SubGroupTabs")) {
-            for (int i = 0; i < group.SubGroups.Count; i++) {
-                bool open = true;
-                var sub = group.SubGroups[i];
-                var tabFlags = (selectedSubGroup == i) ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.NoCloseWithMiddleMouseButton;
-                if (ImGui.BeginTabItem(sub.Name, ref open, tabFlags)) {
-                    switch (sub.ID) {
-                        case SubGroupID.Preferences_General:
-                            ShowPreferencesGeneralTab();
-                            break;
-                        case SubGroupID.Preferences_Editing:
-                            ShowPreferencesEditingTab();
-                            break;
-                        case SubGroupID.Preferences_Bundles:
-                            ShowBundlesEditingTab();
-                            break;
-                        case SubGroupID.Display_General:
-                            ShowDisplayGeneralTab();
-                            break;
-                        case SubGroupID.Display_Theme:
-                            ShowDisplayThemeTab();
-                            break;
-                        case SubGroupID.Hotkeys_Global:
-                            ShowHotkeysGlobalTab();
-                            break;
-                        case SubGroupID.Hotkeys_PakBrowser:
-                            ShowHotkeysPakBrowserTab();
-                            break;
-                        case SubGroupID.Hotkeys_MeshViewer:
-                            ShowHotkeysMeshViewerTab();
-                            break;
-                        case SubGroupID.Hotkeys_TextureViewer:
-                            ShowHotkeysTextureViewerTab();
-                            break;
-                        case SubGroupID.Hotkeys_Scene:
-                            ShowHotkeysSceneTab();
-                            break;
-                        case SubGroupID.Hotkeys_UVSEditor:
-                            ShowHotkeysUVSEditorTab();
-                            break;
-                        case SubGroupID.Games_ResidentEvil:
-                            ShowGamesResidentEvilTab();
-                            break;
-                        case SubGroupID.Games_MonsterHunter:
-                            ShowGamesMonsterHunterTab();
-                            break;
-                        case SubGroupID.Games_Other:
-                            ShowGamesOtherTab();
-                            break;
-                        case SubGroupID.Games_Custom:
-                            ShowGamesCustomTab();
-                            break;
-                        default:
-                            ImGui.Text("Lorem Ipsum");
-                            break;
+        int tabsPerRow = Math.Max(1, (int)(ImGui.GetContentRegionAvail().X / 110));
+        for (int row = 0; row < group.SubGroups.Count; row += tabsPerRow) {
+            bool isOnThisRow = selectedSubGroup >= row && selectedSubGroup < row + tabsPerRow;
+            if (ImGui.BeginTabBar($"##SubGroupTabs{row}", ImGuiTabBarFlags.NoCloseWithMiddleMouseButton | ImGuiTabBarFlags.DrawSelectedOverline)) {
+                ImGui.PushStyleColor(ImGuiCol.TabSelected, isOnThisRow ? ImguiHelpers.GetColor(ImGuiCol.TabSelected) : ImguiHelpers.GetColor(ImGuiCol.Tab));
+                ImGui.PushStyleColor(ImGuiCol.TabSelectedOverline, isOnThisRow ? ImguiHelpers.GetColor(ImGuiCol.TabSelectedOverline) : ImguiHelpers.GetColor(ImGuiCol.Tab));
+                for (int i = row; i < Math.Min(row + tabsPerRow, group.SubGroups.Count); i++) {
+                    bool open = true;
+                    var flags = (isOnThisRow && selectedSubGroup == i) ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+
+                    ImGui.PushID(i);
+                    if (ImGui.BeginTabItem(group.SubGroups[i].Name, ref open, flags)) {
+                        ImGui.EndTabItem();
                     }
-                    ImGui.EndTabItem();
+                    if (ImGui.IsItemClicked()) {
+                        selectedSubGroup = i;
+                    }
+                    ImGui.PopID();
                 }
-                if (ImGui.IsItemClicked()) {
-                    selectedSubGroup = i;
-                }
+                ImGui.PopStyleColor(2);
+                ImGui.EndTabBar();
             }
-            ImGui.EndTabBar();
+        }
+
+        if (selectedSubGroup >= 0 && selectedSubGroup < group.SubGroups.Count) {
+            ShowSubGroupTabContent(group.SubGroups[selectedSubGroup].ID);
+        }
+    }
+    private void ShowSubGroupTabContent(SubGroupID id)
+    {
+        switch (id) {
+            case SubGroupID.Preferences_General: ShowPreferencesGeneralTab(); break;
+            case SubGroupID.Preferences_Editing: ShowPreferencesEditingTab(); break;
+            case SubGroupID.Preferences_Bundles: ShowBundlesEditingTab(); break;
+            case SubGroupID.Display_General: ShowDisplayGeneralTab(); break;
+            case SubGroupID.Display_Theme: ShowDisplayThemeTab(); break;
+            case SubGroupID.Hotkeys_Global: ShowHotkeysGlobalTab(); break;
+            case SubGroupID.Hotkeys_PakBrowser: ShowHotkeysPakBrowserTab(); break;
+            case SubGroupID.Hotkeys_MeshViewer: ShowHotkeysMeshViewerTab(); break;
+            case SubGroupID.Hotkeys_TextureViewer: ShowHotkeysTextureViewerTab(); break;
+            case SubGroupID.Hotkeys_Scene: ShowHotkeysSceneTab(); break;
+            case SubGroupID.Hotkeys_UVSEditor: ShowHotkeysUVSEditorTab(); break;
+            case SubGroupID.Games_ResidentEvil: ShowGamesResidentEvilTab(); break;
+            case SubGroupID.Games_MonsterHunter: ShowGamesMonsterHunterTab(); break;
+            case SubGroupID.Games_Other: ShowGamesOtherTab(); break;
+            case SubGroupID.Games_Custom: ShowGamesCustomTab(); break;
+            default: ImGui.Text("Lorem Ipsum"); break;
         }
     }
     private static void ShowPreferencesGeneralTab()
@@ -581,7 +557,7 @@ public class SettingsWindowHandler : IWindowHandler, IKeepEnabledWhileSaving
         changed = ImGui.Checkbox("Alt", ref key.alt) || changed;
         ImGui.SameLine();
         ImGui.PopItemWidth();
-        ImGui.SetNextItemWidth(ImGui.CalcItemWidth() - 150);
+        ImGui.SetNextItemWidth(ImGui.CalcItemWidth() - 200);
         changed = ImguiHelpers.FilterableCSharpEnumCombo<ImGuiKey>(label, ref key.Key, ref filter) || changed;
         if (!setting.IsInitial) {
             ImGui.SameLine();

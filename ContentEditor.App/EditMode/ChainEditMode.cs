@@ -1,6 +1,7 @@
 using ContentEditor.App.ImguiHandling;
 using ContentEditor.App.ImguiHandling.Chain;
 using ContentEditor.App.Windowing;
+using ContentEditor.Core;
 using ContentPatcher;
 using ReeLib;
 
@@ -100,17 +101,17 @@ public class ChainEditMode : EditModeHandler
             }
         }
 
-        if (ImGui.Button($"{AppIcons.SI_FileNew} New chain")) {
+        if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_FileType_ChainNew, new[] {Colors.IconSecondary, Colors.IconPrimary}, null, "New Chain")) {
             filePath = Scene.Workspace.ResourceManager.CreateNewFile(KnownFileFormats.Chain)!.Filepath;
         }
         if (Chain2Available) {
             ImGui.SameLine();
-            if (ImGui.Button($"{AppIcons.SI_FileNew} New chain2")) {
+            if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_FileType_Chain2New, new[] { Colors.IconSecondary, Colors.IconPrimary, Colors.IconPrimary }, null, "New Chain2")) {
                 filePath = Scene.Workspace.ResourceManager.CreateNewFile(KnownFileFormats.Chain2)!.Filepath;
             }
         }
         ImGui.SameLine();
-        if (ImGui.Button($"{AppIcons.SI_FileNew} New clsp")) {
+        if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_FileType_CLSPNew, new[] { Colors.IconPrimary, Colors.IconPrimary, Colors.IconPrimary, Colors.IconSecondary }, null, "New CLSP")) {
             filePath = Scene.Workspace.ResourceManager.CreateNewFile(KnownFileFormats.CollisionShapePreset)!.Filepath;
         }
 

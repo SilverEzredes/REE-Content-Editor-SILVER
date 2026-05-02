@@ -373,11 +373,9 @@ public class HomeWindow : IWindowHandler
         }
         ImGui.SameLine();
         using (var _ = ImguiHelpers.Disabled(EditorWindow.CurrentWindow?.Workspace.CurrentBundle == null)) {
-            ImGui.PushStyleColor(ImGuiCol.Text, Colors.IconTertiary);
-            if (ImGui.Button($"{AppIcons.SI_BundleLoadOrder}")) {
+            if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_BundleUnload, new[] {Colors.IconPrimary, Colors.IconPrimary, Colors.IconPrimary, Colors.IconTertiary, Colors.IconTertiary, Colors.IconTertiary} )) {
                 EditorWindow.CurrentWindow?.SetWorkspace(EditorWindow.CurrentWindow.Workspace.Env.Config.Game, null);
             }
-            ImGui.PopStyleColor();
             ImguiHelpers.Tooltip("Unload current Bundle"u8);
         }
         ImGui.SameLine();

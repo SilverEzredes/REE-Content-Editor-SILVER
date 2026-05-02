@@ -440,27 +440,17 @@ public class MdfFileImguiHandler : IObjectUIHandler
         using (var _ = ImguiHelpers.Disabled(mdfBookmarks?.GetBookmarks(workspace.Game.name).Count == 0)) {
             ImGui.SameLine();
             if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_BookmarkClear, new[] { Colors.IconPrimary, Colors.IconTertiary })) {
-                ImGui.OpenPopup("Confirm Action");
+                ImGui.OpenPopup("Confirm Action"u8);
             }
             ImguiHelpers.Tooltip("Clear material parameter bookmarks");
-            if (ImGui.BeginPopupModal("Confirm Action", ImGuiWindowFlags.AlwaysAutoResize)) {
-                string confirmText = $"Are you sure you want to delete all material parameter bookmarks for {Languages.TranslateGame(workspace.Game.name)}?";
-                var textSize = ImGui.CalcTextSize(confirmText);
-                ImGui.Text(confirmText);
-                ImGui.Separator();
-
-                if (ImGui.Button("Yes", new Vector2(textSize.X / 2, 0))) {
+            AppImguiHelpers.ShowActionModal("Confirm Action", $"{AppIcons.SI_GenericDelete2}", Colors.IconTertiary,
+                $"Are you sure you want to delete all material parameter bookmarks for {Languages.TranslateGame(workspace.Game.name)}?",
+                () => {
                     mdfBookmarks?.ClearBookmarks(workspace.Game.name);
                     isShowOnlyBookmarkedParams = false;
                     Logger.Info($"Cleared material parameter bookmarks for {workspace.Game.name}");
-                    ImGui.CloseCurrentPopup();
                 }
-                ImGui.SameLine();
-                if (ImGui.Button("No", new Vector2(textSize.X / 2, 0))) {
-                    ImGui.CloseCurrentPopup();
-                }
-                ImGui.EndPopup();
-            }
+            );
         }
         ImGui.SameLine();
         ImguiHelpers.VerticalSeparator();

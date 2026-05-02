@@ -437,6 +437,12 @@ public static class AppIcons
     public static readonly char SI_SortAZ = '\uee3d';
     public static readonly char SI_SortZA = '\uee3e';
     public static readonly char SI_MDFGroupParams = '\uee3f';
+    public static readonly char[] SIC_BundleUnload = { '\uee40', '\uee41', '\uee42', '\uee43', '\uee44', '\uee45' };
+    public static readonly char[] SIC_BundleSaveAsNew = { '\uee46', '\uee47', '\uee48', '\uee49', '\uee4a', '\uee4b' };
+    public static readonly char[] SIC_FileType_ChainNew = { '\uee4c', '\uee4d' };
+    public static readonly char[] SIC_FileType_Chain2New = { '\uee4e', '\uee4f', '\uee50' };
+    public static readonly char[] SIC_FileType_CLSPNew = { '\uee51', '\uee52', '\uee53', '\uee54' };
+    public static readonly char SI_LUA = '\uee55';
 
     public static string PrependIcon(this string text, object target)
     {

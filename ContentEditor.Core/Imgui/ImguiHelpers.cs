@@ -527,31 +527,44 @@ public static class ImguiHelpers
 
         return changed;
     }
-    public static bool ButtonMultiColor(char[] icons, Vector4[] colors, string? ID = null)
+    public static bool ButtonMultiColor(char[] icons, Vector4[] colors, string? ID = null, string? label = null)
     {
+        var style = ImGui.GetStyle();
         var iconSize = ImGui.CalcTextSize(icons[0].ToString());
-        var padding = ImGui.GetStyle().FramePadding;
-        var size = iconSize + new Vector2(padding.X * 2, padding.Y * 2);
+        var textSize = label != null ? ImGui.CalcTextSize(label) : Vector2.Zero;
+        float spacing = label != null ? style.ItemInnerSpacing.X : 0f;
+        var size = new Vector2(
+            iconSize.X + spacing + textSize.X + style.FramePadding.X * 2,
+            Math.Max(iconSize.Y, textSize.Y) + style.FramePadding.Y * 2
+        );
 
         bool changed = false;
-        bool disabled = ImGui.GetStyle().Alpha < 1.0f;
+        bool disabled = style.Alpha < 1.0f;
 
-        if (ImGui.Button("##ButtonMultiColor" + string.Join("", icons) + ID, size)) {
+        if (ImGui.Button("##ButtonMultiColor" + string.Join("", icons) + (ID ?? ""), size)) {
             changed = true;
         }
 
         var drawList = ImGui.GetWindowDrawList();
         var min = ImGui.GetItemRectMin();
         var max = ImGui.GetItemRectMax();
+        float btnW = iconSize.X + spacing + textSize.X;
 
         Vector2 pos = new(
-            min.X + (max.X - min.X - iconSize.X) * 0.5f,
-            min.Y + (max.Y - min.Y - iconSize.Y) * 0.5f
+            min.X + (max.X - min.X - btnW) * 0.5f,
+            min.Y + (max.Y - min.Y - Math.Max(iconSize.Y, textSize.Y)) * 0.5f
         );
 
         for (int i = 0; i < icons.Length; i++) {
-            if (disabled) { colors[i].W *= ImGui.GetStyle().DisabledAlpha; }
+            if (disabled) { colors[i].W *= style.DisabledAlpha; }
             drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(colors[i]), icons[i].ToString());
+        }
+
+        if (label != null) {
+            Vector2 textPos = new(pos.X + iconSize.X + spacing, pos.Y);
+            var textColor = GetColor(ImGuiCol.Text);
+            if (disabled) { textColor.W *= style.DisabledAlpha; }
+            drawList.AddText(textPos, ImGui.ColorConvertFloat4ToU32(textColor), label);
         }
 
         return changed;
