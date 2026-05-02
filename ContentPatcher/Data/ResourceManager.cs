@@ -633,7 +633,7 @@ public sealed class ResourceManager(PatchDataContainer config) : IDisposable
     }
 
     /// <summary>
-    /// Attempt to load a file from the given file path. Can be a disk path, a native or internal path.
+    /// Attempt to load a file from the given file path. Can be a disk path or a native or internal path. Does not handle custom bundle files unless a full native path is given.
     /// </summary>
     /// <param name="filepath"></param>
     /// <param name="fileHandle"></param>

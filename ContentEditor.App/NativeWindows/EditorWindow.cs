@@ -442,7 +442,7 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
         if (workspace == null) return;
 
         if (!string.IsNullOrEmpty(scene.InternalPath)) {
-            if (workspace.ResourceManager.TryGetOrLoadFile(scene.InternalPath, out var file)) {
+            if (workspace.ResourceManager.TryResolveGameFile(scene.InternalPath, out var file)) {
                 file.Stream.Seek(0, SeekOrigin.Begin);
                 AddFileEditor(file);
             } else {

@@ -150,7 +150,7 @@ public class ResourcePathPicker : IObjectUIHandler
         if (ImGui.BeginPopupContextItem()) {
             if (!string.IsNullOrWhiteSpace(pendingPath) && ImGui.Button("Open file")) {
                 ImGui.CloseCurrentPopup();
-                if (workspace.ResourceManager.TryGetOrLoadFile(currentPath, out var newFileHandle)) {
+                if (workspace.ResourceManager.TryResolveGameFile(currentPath, out var newFileHandle)) {
                     EditorWindow.CurrentWindow?.AddFileEditor(newFileHandle);
                 } else {
                     Logger.Error("Failed to load file: " + currentPath);

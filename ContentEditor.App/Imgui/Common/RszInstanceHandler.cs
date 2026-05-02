@@ -997,7 +997,7 @@ public class UserDataReferenceHandler : Singleton<UserDataReferenceHandler>, IOb
                             Logger.Error("Empty user data file path not allowed");
                             return;
                         }
-                        if (!ws.ResourceManager.TryGetOrLoadFile(newPath, out var fileHandle)) {
+                        if (!ws.ResourceManager.TryResolveGameFile(newPath, out var fileHandle)) {
                             Logger.Error("User data file not found: " + newPath);
                             return;
                         }
@@ -1025,13 +1025,8 @@ public class UserDataReferenceHandler : Singleton<UserDataReferenceHandler>, IOb
                     ImGui.TextColored(Colors.Error, "No path for user data");
                     return;
                 }
-                var resolvedPath = ws.Env.ResolveFilepath(info.Path);
-                if (resolvedPath == null) {
-                    ImGui.TextColored(Colors.Error, "User data file not found: " + info.Path);
-                    return;
-                }
 
-                if (ws.ResourceManager.TryResolveGameFile(resolvedPath, out var handle)) {
+                if (ws.ResourceManager.TryResolveGameFile(info.Path, out var handle)) {
                     WindowData.CreateEmbeddedWindow(context, context.GetWindow()!, new UserDataFileEditor(ws, handle), "UserFile");
                 } else {
                     context.StateBool = true;
@@ -1065,7 +1060,7 @@ public class UserDataReferenceHandler : Singleton<UserDataReferenceHandler>, IOb
             // context.AddChild("UserFile", file);
         }
 
-        if (context.children.Count == 0) {
+        if (context.children.Count == 0 || context.GetChild<UserDataFileEditor>() == null) {
             ImGui.TextColored(Colors.Error, "Failed to load or find UserData reference");
             ImGui.SameLine();
             if (ImGui.Button("Try again")) {
