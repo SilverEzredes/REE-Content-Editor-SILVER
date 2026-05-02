@@ -18,6 +18,8 @@ public partial class CommonMeshResource(string name, Workspace workspace) : IRes
 
     public MaterialGroupWrapper? ImportedMaterials { get; private set; }
 
+    public MeshImportWarnings importWarnings;
+
     public GameName GameVersion = GameName.dd2;
 
     public string Name => name;
@@ -30,7 +32,7 @@ public partial class CommonMeshResource(string name, Workspace workspace) : IRes
 
     public MeshFile NativeMesh
     {
-        get => _mesh ??= (ImportMeshFromAssimp(_scene!, MeshFile.GetGameVersionConfigs(GameVersion)[0]));
+        get => _mesh ??= (ImportMeshFromAssimp(_scene!, MeshFile.GetGameVersionConfigs(GameVersion)[0], out importWarnings));
         set => _mesh = value;
     }
 
@@ -60,6 +62,14 @@ public partial class CommonMeshResource(string name, Workspace workspace) : IRes
 
     public int MeshCount => NativeMesh.MeshData?.totalMeshCount
         ?? -1;
+
+    [Flags]
+    public enum MeshImportWarnings
+    {
+        None,
+        QuestionableSkeletonRotation,
+        TooManyDeformBones,
+    }
 
     public void WriteTo(string filepath)
     {

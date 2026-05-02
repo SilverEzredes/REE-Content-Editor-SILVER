@@ -69,7 +69,7 @@ public class MeshViewer : FileEditor, IDisposable, IFocusableFileHandleReference
 
     private string? lastImportSourcePath;
 
-    private bool showSkeleton;
+    internal bool showSkeleton;
     private GizmoShapeBuilder? _skeletonBuilder;
     private MeshHandle? gizmoMeshHandle;
 
@@ -170,7 +170,7 @@ public class MeshViewer : FileEditor, IDisposable, IFocusableFileHandleReference
             return;
         }
 
-        if (showSkeleton && meshContexts.Count > 0) {
+        if (showSkeleton && meshContexts.Count > 0 && scene.Root.GizmoManager != null) {
             // TODO render fbxskel instead when available
             RenderSkeleton(mainCtx);
         }
@@ -1445,6 +1445,12 @@ internal class MeshViewerContext(MeshViewer viewer, UIContext ui, FileHandle fil
             UpdateMaterial(true);
         } else {
             meshComponent.SetMesh(Handle, Handle);
+        }
+
+        if (Handle.Resource is CommonMeshResource importMesh) {
+            if (importMesh.importWarnings.HasFlag(CommonMeshResource.MeshImportWarnings.QuestionableSkeletonRotation)) {
+                viewer.showSkeleton = true;
+            }
         }
     }
 

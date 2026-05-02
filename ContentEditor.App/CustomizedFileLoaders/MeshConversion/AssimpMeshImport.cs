@@ -27,12 +27,13 @@ public partial class CommonMeshResource : IResourceFile
 
     private static readonly Quaternion ZUpToYUpRotation = new Quaternion(-0.70710677f, 0, 0, 0.70710677f);
 
-    private static MeshFile ImportMeshFromAssimp(Assimp.Scene scene, string versionConfig)
+    private static MeshFile ImportMeshFromAssimp(Assimp.Scene scene, string versionConfig, out MeshImportWarnings warnings)
     {
         var serializerVersion = MeshFile.GetSerializerVersion(versionConfig);
         var mesh = new MeshFile(new FileHandler());
         var srcMeshes = scene.Meshes;
         var scale = GetImportScale();
+        warnings = MeshImportWarnings.None;
 
         mesh.Header.BufferCount = 1;
 
@@ -404,11 +405,22 @@ public partial class CommonMeshResource : IResourceFile
 
         if (mainBuffer.Weights.Length > 0) {
             int remapIndex = 0;
+            var boundingBoxMismatches = 0;
             foreach (var (remap, bone) in deformBones) {
                 bone.remapIndex = remapIndex++;
                 mesh.BoneData!.DeformBones.Add(bone);
+
+                var boneOrigin = bone.localTransform.ToSystem().Translation;
+                if (!bone.boundingBox.AsAABB.Contains(boneOrigin)) {
+                    boundingBoxMismatches++;
+                }
+            }
+            if (boundingBoxMismatches > deformBones.Count * 0.8f) {
+                warnings |= MeshImportWarnings.QuestionableSkeletonRotation;
+                Logger.Warn($"{boundingBoxMismatches} out of {deformBones.Count} bones were detected to be outside of their affected mesh bounding box. Did you perhaps forget to apply rotations in the original mesh?");
             }
             if (deformBones.Count > maxWeighedBones) {
+                warnings |= MeshImportWarnings.TooManyDeformBones;
                 Logger.Error($"Imported mesh contains {deformBones.Count} deform bones (bones that have weights assigned). Only up to {maxWeighedBones} are supported for mesh format {versionConfig}");
             }
 
