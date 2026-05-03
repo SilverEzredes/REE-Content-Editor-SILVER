@@ -241,7 +241,7 @@ public static class ImguiHelpers
     {
         ImGui.SetNextWindowSize(data.Size, ImGuiCond.FirstUseEver);
         ImGui.SetNextWindowPos(data.Position, ImGuiCond.FirstUseEver);
-        if (data.Context?.Changed == true) {
+        if (data.Context?.Changed == true && !data.Context.DisableUndo) {
             flags |= ImGuiWindowFlags.UnsavedDocument;
         }
         var open = true;

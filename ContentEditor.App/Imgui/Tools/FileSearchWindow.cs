@@ -94,6 +94,7 @@ public class FileSearchWindow : IWindowHandler
     public void Init(UIContext context)
     {
         this.context = context;
+        context.DisableUndo = true;
         data = context.Get<WindowData>();
     }
 
@@ -117,6 +118,9 @@ public class FileSearchWindow : IWindowHandler
         switch (findType) {
             case 0:
                 ImguiHelpers.CSharpEnumCombo("Search Type", ref rszSearchType);
+                _flagContext ??= context.AddChild("File Types", this, flagHandler, (c) => c!.rszSearchFlags, (c, v) => c.rszSearchFlags = v);
+                _flagContext.DisableUndo = true;
+                flagHandler.OnIMGUI(_flagContext);
                 switch (rszSearchType) {
                     case RszSearchType.ByField:
                         ShowRszFieldSearch(workspace.Env);
@@ -127,7 +131,7 @@ public class FileSearchWindow : IWindowHandler
                         ShowRszClassSearch(workspace.Env);
                         break;
                     case RszSearchType.Debug_FindUnresolved:
-                    ShowRszUnresolvedSearch(workspace.Env);
+                        ShowRszUnresolvedSearch(workspace.Env);
                         break;
                 }
                 break;
@@ -218,8 +222,6 @@ public class FileSearchWindow : IWindowHandler
         }
 
         var value = RszValueInput(targetTypes[0]);
-        _flagContext ??= context.AddChild("File Types", this, flagHandler, (c) => c!.rszSearchFlags, (c, v) => c.rszSearchFlags = v);
-        flagHandler.OnIMGUI(_flagContext);
 
         if (cancellationTokenSource != null) {
             return;
@@ -376,9 +378,6 @@ public class FileSearchWindow : IWindowHandler
 
         ImGui.Separator();
 
-        _flagContext ??= context.AddChild("File Types", this, flagHandler, (c) => c!.rszSearchFlags, (c, v) => c.rszSearchFlags = v);
-        flagHandler.OnIMGUI(_flagContext);
-
         if (cancellationTokenSource != null) {
             return;
         }
@@ -418,9 +417,6 @@ public class FileSearchWindow : IWindowHandler
 
     private void ShowRszUnresolvedSearch(Workspace env)
     {
-        _flagContext ??= context.AddChild("File Types", this, flagHandler, (c) => c!.rszSearchFlags, (c, v) => c.rszSearchFlags = v);
-        flagHandler.OnIMGUI(_flagContext);
-
         if (cancellationTokenSource != null) {
             return;
         }
@@ -470,7 +466,7 @@ public class FileSearchWindow : IWindowHandler
         object? value = null;
         if (cancellationTokenSource == null) {
             Type csType;
-            if (!searchClassOnly) {
+            if (!searchClassOnly || rszSearchType != RszSearchType.ByClass) {
                 if (type is RszFieldType.String or RszFieldType.RuntimeType or RszFieldType.Resource or RszFieldType.UserData) {
                     csType = typeof(string);
                 } else {
@@ -861,7 +857,7 @@ public class FileSearchWindow : IWindowHandler
                 }
 
                 foreach (var (name, values) in nameValues) {
-                    Logger.Info($"{cls.name} Unresolved field {name} values: {string.Join(", ", values)}");
+                    Logger.Info($"{cls.name} Unresolved field {name} values: {string.Join(", ", values.Select(v => v is float flt ? $"{(flt == Math.Round(flt) ? flt+".0" : flt)}/{BitConverter.SingleToUInt32Bits(flt)}" : v.ToString()))}");
                 }
             }
         }
