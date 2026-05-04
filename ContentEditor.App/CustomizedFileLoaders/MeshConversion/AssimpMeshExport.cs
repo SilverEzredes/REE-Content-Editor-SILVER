@@ -326,7 +326,7 @@ public partial class CommonMeshResource : IResourceFile
             if (context.scene.MaterialCount == 0) {
                 context.scene.Materials.Add(new Material() { Name = "default" });
             }
-            ExportLod(file, context, file.OccluderMesh, $"{rootName}_occ_", transform);
+            ExportLod(file, context, file.OccluderMesh, $"occ_{rootName}_", transform);
         }
 
         return context;
