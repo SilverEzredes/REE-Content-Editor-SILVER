@@ -300,6 +300,35 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
         }
 
         if (workspace != null) {
+            string? activeGamePath = AppConfig.Instance.GetGameExecutablePath(workspace.Game.name);
+            using (var _ = ImguiHelpers.Disabled(string.IsNullOrEmpty(activeGamePath))) {
+                if (ImGui.MenuItem($"{AppIcons.Play} Launch Game")) {
+                    if (!File.Exists(activeGamePath)) {
+                        Logger.Error("Game executable not found at: " + activeGamePath);
+                    } else {
+                        var exeName = Path.GetFileNameWithoutExtension(activeGamePath);
+                        bool isGameAlreadyRunning = false;
+
+                        foreach (var process in Process.GetProcessesByName(exeName)) {
+                            if (process.MainModule?.FileName == activeGamePath) {
+                                isGameAlreadyRunning = true;
+                                break;
+                            }
+                        }
+
+                        if (isGameAlreadyRunning) {
+                            Logger.Info($"{Languages.TranslateGame(workspace.Game.name)} is already running.");
+                        } else {
+                            try {
+                                Process.Start(activeGamePath);
+                                Logger.Debug($"{Languages.TranslateGame(workspace.Game.name)} launched.");
+                            } catch (Exception e) {
+                                Logger.Error($"Failed to launch {Languages.TranslateGame(workspace.Game.name)}: " + e.Message);
+                            }
+                        }
+                    }
+                }
+            }
             if (ImGui.BeginMenu($"Bundle: {workspace.CurrentBundle?.Name ?? "--"}")) {
                 if (!workspace.BundleManager.IsLoaded) workspace.BundleManager.LoadDataBundles();
                 if (ImGui.BeginMenu($"Active Bundle: {workspace.Data.ContentBundle}")) {

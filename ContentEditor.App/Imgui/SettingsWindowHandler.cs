@@ -458,30 +458,34 @@ public class SettingsWindowHandler : IWindowHandler, IKeepEnabledWhileSaving
         if (ImGui.TreeNodeEx(Languages.TranslateGame(game.name), ImGuiTreeNodeFlags.Framed)) {
             ImGui.Spacing();
             var gamepath = config.GetGamePath(game);
+            var gameExe = config.GetGameExecutablePath(game);
+            var extractPath = config.GetGameExtractPath(game);
+            var rszPath = config.GetGameRszJsonPath(game);
+            var filelist = config.GetGameFilelist(game);
+            var isFullySupported = fullSupportedGames?.Contains(game.name) == true;
+
             if (AppImguiHelpers.InputFolder("Game Path", ref gamepath)) {
                 if (gamepath.EndsWith(".exe")) gamepath = Path.GetDirectoryName(gamepath)!;
                 config.SetGamePath(game, gamepath);
             }
             ImguiHelpers.Tooltip("The full path to the game. Should point to the folder containing the .exe and .pak files");
 
-            var extractPath = config.GetGameExtractPath(game);
             if (AppImguiHelpers.InputFolder("Game Extract Path", ref extractPath)) {
                 extractPath = PathUtils.RemoveNativesFolder(extractPath);
                 config.SetGameExtractPath(game, extractPath);
             }
             ImguiHelpers.Tooltip("The default path to preselect when extracting files.");
 
-            ImGui.Spacing();
-
-            var rszPath = config.GetGameRszJsonPath(game);
-            var filelist = config.GetGameFilelist(game);
+            if (AppImguiHelpers.InputFilepath("Game Executable", ref gameExe, FileFilters.Executable)) {
+                config.SetGameExecutablePath(game, gameExe);
+            }
+            ImguiHelpers.Tooltip("The full path to the game executable.");
 
             if (AppImguiHelpers.InputFilepath("File List", ref filelist, FileFilters.ListFile)) {
                 config.SetGameFilelist(game, filelist);
             }
             ImguiHelpers.Tooltip("Defining a custom path here may not be required if it's at least a partially supported game.\nCan also be used in case of issues with automatic downloads.");
 
-            var isFullySupported = fullSupportedGames?.Contains(game.name) == true;
             if (AppImguiHelpers.InputFilepath(isFullySupported ? "Custom RSZ JSON Path" : "RSZ Template JSON Path", ref rszPath, FileFilters.JsonFile)) {
                 config.SetGameRszJsonPath(game, rszPath);
                 WindowHandlerFactory.ResetGameTypes(game);

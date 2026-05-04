@@ -100,6 +100,7 @@ public class AppConfig : Singleton<AppConfig>
         public const string Key_UVS_DecreaseSpeed = "key_uvs_decreasespeed";
 
         public const string Gamepath = "game_path";
+        public const string GameExePath = "game_exe_path";
         public const string GameExtractPath = "game_extract_path";
         public const string RszJsonPath = "rsz_json_path";
         public const string FilelistPath = "file_list_path";
@@ -108,6 +109,7 @@ public class AppConfig : Singleton<AppConfig>
     private class AppGameConfig
     {
         public string gamepath = string.Empty;
+        public string gameExe = string.Empty;
         public string? gameExtractPath;
 
         public string? filelist;
@@ -279,6 +281,8 @@ public class AppConfig : Singleton<AppConfig>
     public void SetGameRszJsonPath(GameIdentifier game, string path) => SetForGameAndSave(game.name, path, (cfg, val) => cfg.rszJson = val);
     public string? GetGameFilelist(GameIdentifier game) => _lock.Read(() => gameConfigs.GetValueOrDefault(game.name)?.filelist);
     public void SetGameFilelist(GameIdentifier game, string path) => SetForGameAndSave(game.name, path, (cfg, val) => cfg.filelist = val);
+    public string? GetGameExecutablePath(GameIdentifier game) => _lock.Read(() => gameConfigs.GetValueOrDefault(game.name)?.gameExe);
+    public void SetGameExecutablePath(GameIdentifier game, string path) => SetForGameAndSave(game.name, path, (cfg, val) => cfg.gameExe = val);
 
     public string GetGameUserPath(GameIdentifier game) => Path.Combine(BookmarksFilepath.Get() ?? Path.Combine(AppDataPath, "thumbs"), game.name);
     public string LuaUserPath => Path.Combine(BookmarksFilepath.Get() ?? AppDataPath, "lua");
@@ -438,6 +442,9 @@ public class AppConfig : Singleton<AppConfig>
         foreach (var (game, data) in instance.gameConfigs) {
             if (!string.IsNullOrEmpty(data.gamepath)) {
                 items.Add((Keys.Gamepath, data.gamepath, game));
+            }
+            if (!string.IsNullOrEmpty(data.gameExe)) {
+                items.Add((Keys.GameExePath, data.gameExe, game));
             }
             if (!string.IsNullOrEmpty(data.gameExtractPath)) {
                 items.Add((Keys.GameExtractPath, data.gameExtractPath, game));
@@ -676,6 +683,9 @@ public class AppConfig : Singleton<AppConfig>
                     switch (key) {
                         case Keys.Gamepath:
                             config.gamepath = value;
+                            break;
+                        case Keys.GameExePath:
+                            config.gameExe = value;
                             break;
                         case Keys.GameExtractPath:
                             config.gameExtractPath = value;
