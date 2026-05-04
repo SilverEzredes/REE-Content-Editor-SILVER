@@ -516,7 +516,7 @@
       "Tags": [
         "Enemy"
       ],
-      "Comment": "Missile Platform ???"
+      "Comment": "Reassembler"
     },
     {
       "Path": "natives/stm/character/ch/ch56/ch5630",
@@ -530,7 +530,7 @@
       "Tags": [
         "Enemy"
       ],
-      "Comment": "Reassembler"
+      "Comment": "Sweeper"
     },
     {
       "Path": "natives/stm/character/ch/ch57/ch5700",
