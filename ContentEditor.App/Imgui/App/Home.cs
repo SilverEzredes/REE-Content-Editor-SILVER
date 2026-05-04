@@ -324,6 +324,7 @@ public class HomeWindow : IWindowHandler
         }
         if (!string.IsNullOrEmpty(chosenGame)) {
             var gamepath = AppConfig.Instance.GetGamePath(chosenGame);
+            var gameExe = AppConfig.Instance.GetGameExecutablePath(chosenGame);
             var rszPath = AppConfig.Instance.GetGameRszJsonPath(chosenGame);
             var filelist = AppConfig.Instance.GetGameFilelist(chosenGame);
             var extractPath = AppConfig.Instance.GetGameExtractPath(chosenGame);
@@ -333,6 +334,13 @@ public class HomeWindow : IWindowHandler
                 AppConfig.Instance.SetGamePath(chosenGame, gamepath);
             }
             ImguiHelpers.Tooltip("This is the path to the game (where the .exe file is located)."u8);
+            ImGui.SameLine();
+            ImGui.TextColored(Colors.TextActive, "*");
+
+            if (AppImguiHelpers.InputFilepath("Game Executable", ref gameExe, FileFilters.Executable)) {
+                AppConfig.Instance.SetGameExecutablePath(chosenGame, gameExe);
+            }
+            ImguiHelpers.Tooltip("This is the exact path to the game's executable."u8);
             ImGui.SameLine();
             ImGui.TextColored(Colors.TextActive, "*");
 
@@ -356,7 +364,7 @@ public class HomeWindow : IWindowHandler
         ImGui.SameLine();
         string finishText = "Finish Setup";
         ImguiHelpers.AlignElementRight(ImGui.CalcTextSize(finishText).X + ImGui.GetStyle().ItemSpacing.X + ImGui.GetStyle().FramePadding.X);
-        using (var _ = ImguiHelpers.Disabled((string.IsNullOrEmpty(chosenGame) || string.IsNullOrEmpty(AppConfig.Instance.GetGamePath(chosenGame))))) {
+        using (var _ = ImguiHelpers.Disabled((string.IsNullOrEmpty(chosenGame) || string.IsNullOrEmpty(AppConfig.Instance.GetGamePath(chosenGame)) || string.IsNullOrEmpty(AppConfig.Instance.GetGameExecutablePath(chosenGame))))) {
             if (ImGui.Button(finishText)) {
                 AppConfig.Instance.IsFirstTime.Set(false);
                 EditorWindow.CurrentWindow?.SetWorkspace(chosenGame, null);
