@@ -204,7 +204,6 @@ public class SettingsWindowHandler : IWindowHandler, IKeepEnabledWhileSaving
     private static void ShowPreferencesGeneralTab()
     {
         ImGui.Spacing();
-
         ShowSetting(config.EnableUpdateCheck, "Automatically check for Updates", "Will occasionally check GitHub for new releases.");
         ImGui.SameLine();
         using (var _ = ImguiHelpers.Disabled(AutoUpdater.UpdateCheckInProgress)) {
@@ -212,7 +211,19 @@ public class SettingsWindowHandler : IWindowHandler, IKeepEnabledWhileSaving
                 AutoUpdater.CheckForUpdateInBackground();
             }
         }
+        ShowSetting(config.DisableFileCloseWarning, "Disable Open File Warning When Closing Editor Windows", "Whether to disable the warning notifiation when a window is closed that references an open file.");
+        var navchanged = ShowSetting(config.EnableKeyboardNavigation, "Enable keyboard navigation", "Whether to enable navigating between fields using arrow keys.");
+        if (navchanged) {
+            if (config.EnableKeyboardNavigation) {
+                ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
+            } else {
+                ImGui.GetIO().ConfigFlags &= ~ImGuiConfigFlags.NavEnableKeyboard;
+            }
+        }
+        ShowSetting(config.LoadFromNatives, "Load files from natives/ folder", $"If checked, the app will prefer to load loose files from the active game's natives folder instead of packed files, similar to how the game would.");
+        ShowSetting(config.UseSubPakForLooseTextures, "Store textures into sub pak files (>= MHWilds)", "Whether to store textures in sub paks even for loose file output.\nShouldn't be needed anymore with current REFramework versions, but might be needed in case of issues with newer games");
 
+        ImGui.SeparatorText("Cache");
         var configPath = config.GameConfigBaseFilepath.Get();
         if (AppImguiHelpers.InputFolder("Game Config Base Path", ref configPath)) {
             if (configPath.EndsWith(".exe")) configPath = Path.GetDirectoryName(configPath)!;
@@ -225,21 +236,13 @@ public class SettingsWindowHandler : IWindowHandler, IKeepEnabledWhileSaving
         ShowFolderSetting(config.CacheFilepath, "Cache file path", "The folder to use for general file caching. Must not be empty.");
         ShowFolderSetting(config.ThumbnailCacheFilepath, "Thumbnail cache file path", "The folder that cached thumbnails should be stored in. Must not be empty.");
         ShowFolderSetting(config.BookmarksFilepath, "User data file path", "The folder in which user created bookmarks and other data should be stored. Must not be empty.");
-        ShowSlider(config.UnpackMaxThreads, "Max unpack threads", 1, 64, "The maximum number of threads to be used when unpacking.\nThe actual thread count is determined automatically by the .NET runtime.");
 
-        ShowSetting(config.DisableFileCloseWarning, "Disable Open File Warning When Closing Editor Windows", "Whether to disable the warning notifiation when a window is closed that references an open file.");
-        var navchanged = ShowSetting(config.EnableKeyboardNavigation, "Enable keyboard navigation", "Whether to enable navigating between fields using arrow keys.");
-        if (navchanged) {
-            if (config.EnableKeyboardNavigation) {
-                ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
-            } else {
-                ImGui.GetIO().ConfigFlags &= ~ImGuiConfigFlags.NavEnableKeyboard;
-            }
-        }
+        ImGui.SeparatorText("Performance");
+        ShowSlider(config.UnpackMaxThreads, "Max unpack threads", 1, 64, "The maximum number of threads to be used when unpacking.\nThe actual thread count is determined automatically by the .NET runtime.");
         ShowSetting(config.EnableGpuTexCompression, "Enable GPU texture compression", "Whether to enable using the much faster GPU-based compression method.\nCurrently only available on Windows.\nCan be disabled in case of issues, so that CPU-based compression is used instead.");
-        ShowSetting(config.UseSubPakForLooseTextures, "Store textures into sub pak files (>= MHWilds)", "Whether to store textures in sub paks even for loose file output.\nShouldn't be needed anymore with current REFramework versions, but might be needed in case of issues with newer games");
+
+        ImGui.SeparatorText("Debug");
         ShowSetting(config.LogToFile, "Output logs to file", $"If checked, any logging will also be output to file {FileLogger.DefaultLogFilePath}.\nChanging this setting requires a restart of the app.");
-        ShowSetting(config.LoadFromNatives, "Load files from natives/ folder", $"If checked, the app will prefer to load loose files from the active game's natives folder instead of packed files, similar to how the game would.");
         var logLevel = config.LogLevel.Get();
         if (ImGui.Combo("Minimum logging level", ref logLevel, LogLevels, LogLevels.Length)) {
             config.LogLevel.Set(logLevel);

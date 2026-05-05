@@ -290,7 +290,7 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
                 }
             }
             ImGui.Separator();
-            if (ImGui.MenuItem("Configure games ...")) {
+            if (ImGui.MenuItem("Configure games...")) {
                 AddUniqueSubwindow(new SettingsWindowHandler());
             }
             if (workspace != null && !string.IsNullOrEmpty(workspace.Env.Config.GamePath) && ImGui.MenuItem("Open game folder")) {
@@ -306,10 +306,9 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
                     if (!File.Exists(activeGamePath)) {
                         Logger.Error("Game executable not found at: " + activeGamePath);
                     } else {
-                        var exeName = Path.GetFileNameWithoutExtension(activeGamePath);
                         bool isGameAlreadyRunning = false;
 
-                        foreach (var process in Process.GetProcessesByName(exeName)) {
+                        foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(activeGamePath))) {
                             if (process.MainModule?.FileName == activeGamePath) {
                                 isGameAlreadyRunning = true;
                                 break;
@@ -328,6 +327,26 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
                         }
                     }
                 }
+            }
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(4, ImGui.GetStyle().FramePadding.Y));
+            if (ImGui.BeginMenu($"{AppIcons.SI_Small_ArrowDown}")) {
+                ImGui.PopStyleVar();
+                ImGui.Separator();
+                if (ImGui.MenuItem("Apply patches (Loose File)")) {
+                    ApplyContentPatches(null);
+                }
+                if (ImGui.MenuItem("Apply patches (PAK)")) {
+                    ApplyContentPatches("pak");
+                }
+                if (ImGui.MenuItem("Patch to ...")) {
+                    PlatformUtils.ShowFolderDialog((path) => ApplyContentPatches(path), workspace.Env.Config.GamePath);
+                }
+                if (ImGui.MenuItem("Revert patches")) {
+                    RevertContentPatches();
+                }
+                ImGui.EndMenu();
+            } else {
+                ImGui.PopStyleVar();
             }
             if (ImGui.BeginMenu($"Bundle: {workspace.CurrentBundle?.Name ?? "--"}")) {
                 if (!workspace.BundleManager.IsLoaded) workspace.BundleManager.LoadDataBundles();
@@ -630,19 +649,6 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
                         }
                     }
                     ImGui.EndMenu();
-                }
-                ImGui.Separator();
-                if (ImGui.MenuItem("Apply patches (loose file)")) {
-                    ApplyContentPatches(null);
-                }
-                if (ImGui.MenuItem("Apply patches (PAK)")) {
-                    ApplyContentPatches("pak");
-                }
-                if (ImGui.MenuItem("Patch to ...")) {
-                    PlatformUtils.ShowFolderDialog((path) => ApplyContentPatches(path), workspace.Env.Config.GamePath);
-                }
-                if (ImGui.MenuItem("Revert patches")) {
-                    RevertContentPatches();
                 }
             }
             ImGui.Separator();
