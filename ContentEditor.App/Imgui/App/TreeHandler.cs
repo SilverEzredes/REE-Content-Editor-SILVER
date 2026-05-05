@@ -181,10 +181,6 @@ public abstract class TreeHandler<TBaseNode> : IObjectUIHandler where TBaseNode 
                 if (ImGui.ArrowButton($"arrow", showChildren ? ImGuiDir.Down : ImGuiDir.Right)) {
                     showChildren = ctx.StateBool = !showChildren;
                 }
-                if (sharedContext.focusHierarchyIndex != -1 && sharedContext.focusHierarchy[sharedContext.focusHierarchyIndex] == node) {
-                    ctx.StateBool = showChildren = true;
-                    sharedContext.focusHierarchyIndex--;
-                }
                 ImGui.SameLine();
             } else {
                 showChildren = false;
@@ -200,6 +196,9 @@ public abstract class TreeHandler<TBaseNode> : IObjectUIHandler where TBaseNode 
                 ImGui.SetScrollHereY();
                 sharedContext.focusHierarchyIndex = -1;
                 sharedContext.focusHierarchy.Clear();
+            } else if (sharedContext.focusHierarchyIndex != -1 && sharedContext.focusHierarchy[sharedContext.focusHierarchyIndex] == node) {
+                ctx.StateBool = showChildren = true;
+                sharedContext.focusHierarchyIndex--;
             }
 
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 1); // don't ask why, it just works

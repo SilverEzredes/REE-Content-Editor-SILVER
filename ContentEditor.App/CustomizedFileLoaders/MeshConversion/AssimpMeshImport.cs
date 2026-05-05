@@ -63,7 +63,7 @@ public partial class CommonMeshResource : IResourceFile
         }
 
         var occMeshes = srcMeshes.Where(m => GetMeshRealName(m).StartsWith("occ_")).ToList();
-        var shadowMeshes = srcMeshes.Where(m => GetMeshRealName(m).StartsWith("shadow_lod")).ToList();
+        var shadowMeshes = srcMeshes.Where(m => GetMeshRealName(m).Contains("shadow_lod")).ToList();
         var mainMeshes = srcMeshes.Where(m => !occMeshes.Contains(m) && !shadowMeshes.Contains(m)).ToList();
         if (shadowMeshes.Count > 0 || mainMeshes.Count > 0) {
             mesh.MeshData = new MeshData(mainBuffer);
