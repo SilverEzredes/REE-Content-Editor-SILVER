@@ -58,6 +58,12 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
 
     private string openFileFilter = "";
     private string recentFileFilter = "";
+    private enum GameLaunchType
+    {
+        Normal = 0,
+        LooseFiles = 1,
+        Pak = 2
+    }
 
     internal EditorWindow(int id, ContentWorkspace? workspace = null) : base(id)
     {
@@ -300,54 +306,6 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
         }
 
         if (workspace != null) {
-            string? activeGamePath = AppConfig.Instance.GetGameExecutablePath(workspace.Game.name);
-            using (var _ = ImguiHelpers.Disabled(string.IsNullOrEmpty(activeGamePath))) {
-                if (ImGui.MenuItem($"{AppIcons.Play} Launch Game")) {
-                    if (!File.Exists(activeGamePath)) {
-                        Logger.Error("Game executable not found at: " + activeGamePath);
-                    } else {
-                        bool isGameAlreadyRunning = false;
-
-                        foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(activeGamePath))) {
-                            if (process.MainModule?.FileName == activeGamePath) {
-                                isGameAlreadyRunning = true;
-                                break;
-                            }
-                        }
-
-                        if (isGameAlreadyRunning) {
-                            Logger.Info($"{Languages.TranslateGame(workspace.Game.name)} is already running.");
-                        } else {
-                            try {
-                                Process.Start(activeGamePath);
-                                Logger.Debug($"{Languages.TranslateGame(workspace.Game.name)} launched.");
-                            } catch (Exception e) {
-                                Logger.Error($"Failed to launch {Languages.TranslateGame(workspace.Game.name)}: " + e.Message);
-                            }
-                        }
-                    }
-                }
-            }
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(4, ImGui.GetStyle().FramePadding.Y));
-            if (ImGui.BeginMenu($"{AppIcons.SI_Small_ArrowDown}")) {
-                ImGui.PopStyleVar();
-                ImGui.Separator();
-                if (ImGui.MenuItem("Apply patches (Loose File)")) {
-                    ApplyContentPatches(null);
-                }
-                if (ImGui.MenuItem("Apply patches (PAK)")) {
-                    ApplyContentPatches("pak");
-                }
-                if (ImGui.MenuItem("Patch to ...")) {
-                    PlatformUtils.ShowFolderDialog((path) => ApplyContentPatches(path), workspace.Env.Config.GamePath);
-                }
-                if (ImGui.MenuItem("Revert patches")) {
-                    RevertContentPatches();
-                }
-                ImGui.EndMenu();
-            } else {
-                ImGui.PopStyleVar();
-            }
             if (ImGui.BeginMenu($"Bundle: {workspace.CurrentBundle?.Name ?? "--"}")) {
                 if (!workspace.BundleManager.IsLoaded) workspace.BundleManager.LoadDataBundles();
                 if (ImGui.BeginMenu($"Active Bundle: {workspace.Data.ContentBundle}")) {
@@ -462,6 +420,77 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
 
         AddSubwindow(new NameInputDialog("Bundle Creation", "Select name for the bundle to be created from the PAK file:\n" + pakPath,
             initialName, FilenameRegex(), this, name => Workspace.CreateBundleFromPAK(name, pakPath)));
+    }
+
+    public void ShowLaunchGameMenu()
+    {
+        if (workspace == null) return;
+        string? activeGamePath = AppConfig.Instance.GetGameExecutablePath(workspace.Game.name);
+        var launchType = (GameLaunchType)AppConfig.Instance.GameLaunchType.Get();
+        using (var _ = ImguiHelpers.Disabled(string.IsNullOrEmpty(activeGamePath))) {
+            if (ImGui.MenuItem($"{AppIcons.Play} Launch Game")) {
+                if (!File.Exists(activeGamePath)) {
+                    Logger.Error("Game executable not found at: " + activeGamePath);
+                } else {
+                    bool isGameAlreadyRunning = false;
+
+                    foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(activeGamePath))) {
+                        if (process.MainModule?.FileName == activeGamePath) {
+                            isGameAlreadyRunning = true;
+                            break;
+                        }
+                    }
+
+                    if (isGameAlreadyRunning) {
+                        Logger.Info($"{Languages.TranslateGame(workspace.Game.name)} is already running.");
+                    } else {
+                        try {
+                            string launchSuffix = "";
+                            switch (launchType) {
+                                case GameLaunchType.LooseFiles:
+                                    ApplyContentPatches(null);
+                                    launchSuffix = " with patched loose files";
+                                    break;
+                                case GameLaunchType.Pak:
+                                    ApplyContentPatches("pak");
+                                    launchSuffix = " with patched pak files";
+                                    break;
+                            }
+                            Process.Start(activeGamePath);
+                            Logger.Debug($"{Languages.TranslateGame(workspace.Game.name)} launched{launchSuffix}.");
+                        } catch (Exception e) {
+                            Logger.Error($"Failed to launch {Languages.TranslateGame(workspace.Game.name)}: " + e.Message);
+                        }
+                    }
+                }
+            }
+        }
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(4, ImGui.GetStyle().FramePadding.Y));
+        if (ImGui.BeginMenu($"{AppIcons.SI_Small_ArrowDown}")) {
+            ImGui.PopStyleVar();
+            if (ImGui.MenuItem("Launch Game with Loose File patch", launchType == GameLaunchType.LooseFiles)) {
+                AppConfig.Instance.GameLaunchType.Set(launchType == GameLaunchType.LooseFiles ? (int)GameLaunchType.Normal : (int)GameLaunchType.LooseFiles);
+            }
+            if (ImGui.MenuItem("Launch Game with Pak File patch", launchType == GameLaunchType.Pak)) {
+                AppConfig.Instance.GameLaunchType.Set(launchType == GameLaunchType.Pak ? (int)GameLaunchType.Normal : (int)GameLaunchType.Pak);
+            }
+            ImGui.Separator();
+            if (ImGui.MenuItem("Apply patches (Loose File)")) {
+                ApplyContentPatches(null);
+            }
+            if (ImGui.MenuItem("Apply patches (PAK)")) {
+                ApplyContentPatches("pak");
+            }
+            if (ImGui.MenuItem("Patch to...")) {
+                PlatformUtils.ShowFolderDialog((path) => ApplyContentPatches(path), workspace.Env.Config.GamePath);
+            }
+            if (ImGui.MenuItem("Revert patches")) {
+                RevertContentPatches();
+            }
+            ImGui.EndMenu();
+        } else {
+            ImGui.PopStyleVar();
+        }
     }
 
     protected virtual void OnFileOpen(Stream stream, string filename)
@@ -823,6 +852,9 @@ public partial class EditorWindow : WindowBase, IWorkspaceContainer
             }
             ImGui.EndMenu();
         }
+
+        ShowLaunchGameMenu();
+
         ImguiHelpers.VerticalSeparator();
 
         if (ImGui.MenuItem("Support development (Ko-Fi)")) {

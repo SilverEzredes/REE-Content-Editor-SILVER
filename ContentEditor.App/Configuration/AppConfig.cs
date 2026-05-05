@@ -61,6 +61,7 @@ public class AppConfig : Singleton<AppConfig>
         public const string UseMDFCompactView = "use_mdf_compact_view";
         public const string DisableScriptSafetyWarning = "disable_script_safety_warning";
         public const string UseSubPakForLooseTextures = "use_sub_pak_for_textures";
+        public const string GameLaunchType = "game_launch_type";
 
         public const string RenderAxis = "render_axis";
         public const string RenderMeshes = "render_meshes";
@@ -225,6 +226,7 @@ public class AppConfig : Singleton<AppConfig>
     public readonly SettingWrapper<bool> UseMDFCompactView = new SettingWrapper<bool>(Keys.UseMDFCompactView, _lock, false);
     public readonly SettingWrapper<bool> DisableScriptSafetyWarning = new SettingWrapper<bool>(Keys.DisableScriptSafetyWarning, _lock, false);
     public readonly SettingWrapper<bool> UseSubPakForLooseTextures = new SettingWrapper<bool>(Keys.UseSubPakForLooseTextures, _lock, false);
+    public readonly SettingWrapper<int> GameLaunchType = new SettingWrapper<int>(Keys.GameLaunchType, _lock, 0);
 
     public readonly SettingWrapper<int> PakDisplayModeValue = new SettingWrapper<int>(Keys.LogToFile, _lock, (int)FileDisplayMode.List);
     public FileDisplayMode PakDisplayMode { get => (FileDisplayMode)PakDisplayModeValue.Get(); set => PakDisplayModeValue.Set((int)value); }
@@ -400,6 +402,7 @@ public class AppConfig : Singleton<AppConfig>
             (Keys.UseMDFCompactView, instance.UseMDFCompactView.value.ToString(), null),
             (Keys.DisableScriptSafetyWarning, instance.DisableScriptSafetyWarning.value.ToString(), null),
             (Keys.UseSubPakForLooseTextures, instance.UseSubPakForLooseTextures.value.ToString(), null),
+            (Keys.GameLaunchType, instance.GameLaunchType.value.ToString(), null),
 
             (Keys.RenderAxis, instance.RenderAxis.value.ToString(), null),
             (Keys.RenderMeshes, instance.RenderMeshes.value.ToString(), null),
@@ -605,6 +608,9 @@ public class AppConfig : Singleton<AppConfig>
                             break;
                         case Keys.UseSubPakForLooseTextures:
                             UseSubPakForLooseTextures.value = ReadBool(value);
+                            break;
+                        case Keys.GameLaunchType:
+                            if (int.TryParse(value, out _intvalue)) GameLaunchType.value = _intvalue;
                             break;
                         case Keys.LastUpdateCheck:
                             if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var _updateCheck)) LastUpdateCheck.value = _updateCheck;
