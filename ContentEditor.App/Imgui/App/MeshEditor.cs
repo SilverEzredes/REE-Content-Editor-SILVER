@@ -22,10 +22,18 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
     public MeshDisplayMode DisplayMode { get; private set; }
 
     private EditorInteractionMode interactionMode = EditorInteractionMode.Object;
+    private GeometrySelectionMode geometrySelectionMode = GeometrySelectionMode.Vertex;
     private enum EditorInteractionMode
     {
         Object,
         Edit,
+    }
+
+    private enum GeometrySelectionMode
+    {
+        Vertex,
+        Edge,
+        Face,
     }
 
     private Scene? subscribedScene;
@@ -38,6 +46,8 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
     private SubmeshReference? submeshSelectionAnchor;
     private SubmeshReference? scrollToSubmesh;
     private readonly HashSet<VertexReference> selectedVertices = [];
+    private readonly HashSet<EdgeReference> selectedEdges = [];
+    private readonly HashSet<FaceReference> selectedFaces = [];
     private readonly HashSet<BoneElementReference> selectedBoneElements = [];
     private Dictionary<VertexReference, Vector3>? moveOriginalPositions;
     private Dictionary<BoneReference, BoneTransformState>? moveOriginalBoneTransforms;
@@ -72,6 +82,9 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
 
     private readonly record struct SubmeshReference(MeshViewerContext Context, int Index);
     private readonly record struct VertexReference(MeshViewerContext Context, MeshBuffer Buffer, int Index);
+    private readonly record struct EdgeReference(VertexReference First, VertexReference Second);
+    private readonly record struct FaceReference(MeshViewerContext Context, int SubmeshIndex, int TriangleIndex);
+    private readonly record struct FaceVertices(FaceReference Reference, VertexReference First, VertexReference Second, VertexReference Third);
     private readonly record struct BoneReference(MeshViewerContext Context, MeshBone Bone);
     private readonly record struct BoneElementReference(BoneReference Bone, BoneElement Element);
     private readonly record struct BoneHit(BoneElementReference Reference, float DistanceSquared);
@@ -89,6 +102,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
     }
 
     private bool IsMoving => moveOriginalPositions != null || moveOriginalBoneTransforms != null;
+    private bool HasSelectedGeometry => selectedVertices.Count > 0 || selectedEdges.Count > 0 || selectedFaces.Count > 0;
 
     private enum MoveConstraint
     {
@@ -134,8 +148,13 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
                 if (AppConfig.Instance.Key_Scene_UnhideAll.Get().IsPressed()) UnhideAllObjects();
             }
             if (interactionMode == EditorInteractionMode.Edit) {
+                if (!IsMoving) {
+                    if (AppConfig.Instance.Key_MeshViewer_VertexSelection.Get().IsPressed()) SetGeometrySelectionMode(GeometrySelectionMode.Vertex);
+                    else if (AppConfig.Instance.Key_MeshViewer_EdgeSelection.Get().IsPressed()) SetGeometrySelectionMode(GeometrySelectionMode.Edge);
+                    else if (AppConfig.Instance.Key_MeshViewer_FaceSelection.Get().IsPressed()) SetGeometrySelectionMode(GeometrySelectionMode.Face);
+                }
                 if (!IsMoving && selectAllPressed) ToggleAllEditableElements();
-                if (!IsMoving && (selectedVertices.Count > 0 || selectedBoneElements.Count > 0) && AppConfig.Instance.Key_MeshViewer_MoveGeometry.Get().IsPressed()) BeginMove();
+                if (!IsMoving && (HasSelectedGeometry || selectedBoneElements.Count > 0) && AppConfig.Instance.Key_MeshViewer_MoveGeometry.Get().IsPressed()) BeginMove();
                 if (IsMoving) {
                     UpdateMoveConstraint();
                     if (ImGui.IsKeyPressed(ImGuiKey.Escape)) CancelMove();
@@ -149,7 +168,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
             DrawArmatures(viewportPosition, viewportSize);
         } else {
             if (selectedArmatures.Count > 0) DrawArmatures(viewportPosition, viewportSize);
-            DrawSelectedVertices(viewportPosition, viewportSize);
+            DrawSelectedGeometry(viewportPosition, viewportSize);
         }
         DrawBoxSelection(viewportPosition);
 
@@ -350,6 +369,73 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         ApplyRenderState();
     }
 
+    private void SetGeometrySelectionMode(GeometrySelectionMode mode)
+    {
+        if (geometrySelectionMode == mode) return;
+        ConvertGeometrySelection(mode);
+        geometrySelectionMode = mode;
+        ApplyRenderState();
+    }
+
+    private void ConvertGeometrySelection(GeometrySelectionMode targetMode)
+    {
+        var convertedVertices = new HashSet<VertexReference>();
+        var convertedEdges = new HashSet<EdgeReference>();
+        var convertedFaces = new HashSet<FaceReference>();
+
+        if (targetMode == GeometrySelectionMode.Vertex) {
+            if (geometrySelectionMode == GeometrySelectionMode.Edge) {
+                foreach (var edge in selectedEdges) {
+                    convertedVertices.Add(edge.First);
+                    convertedVertices.Add(edge.Second);
+                }
+            } else {
+                foreach (var reference in selectedFaces) {
+                    if (!TryGetFaceVertices(reference, out var face)) continue;
+                    convertedVertices.Add(face.First);
+                    convertedVertices.Add(face.Second);
+                    convertedVertices.Add(face.Third);
+                }
+            }
+        } else if (targetMode == GeometrySelectionMode.Edge) {
+            if (geometrySelectionMode == GeometrySelectionMode.Vertex) {
+                foreach (var edge in EnumerateEditableEdges()) {
+                    if (selectedVertices.Contains(edge.First) && selectedVertices.Contains(edge.Second)) convertedEdges.Add(edge);
+                }
+            } else {
+                foreach (var reference in selectedFaces) {
+                    if (!TryGetFaceVertices(reference, out var face)) continue;
+                    convertedEdges.Add(CreateEdge(face.First, face.Second));
+                    convertedEdges.Add(CreateEdge(face.Second, face.Third));
+                    convertedEdges.Add(CreateEdge(face.Third, face.First));
+                }
+            }
+        } else if (geometrySelectionMode == GeometrySelectionMode.Vertex) {
+            foreach (var face in EnumerateEditableFaces()) {
+                if (selectedVertices.Contains(face.First) && selectedVertices.Contains(face.Second)
+                    && selectedVertices.Contains(face.Third)) convertedFaces.Add(face.Reference);
+            }
+        } else {
+            foreach (var face in EnumerateEditableFaces()) {
+                if (selectedEdges.Contains(CreateEdge(face.First, face.Second))
+                    && selectedEdges.Contains(CreateEdge(face.Second, face.Third))
+                    && selectedEdges.Contains(CreateEdge(face.Third, face.First))) convertedFaces.Add(face.Reference);
+            }
+        }
+
+        ClearGeometrySelection();
+        selectedVertices.UnionWith(convertedVertices);
+        selectedEdges.UnionWith(convertedEdges);
+        selectedFaces.UnionWith(convertedFaces);
+    }
+
+    private void ClearGeometrySelection()
+    {
+        selectedVertices.Clear();
+        selectedEdges.Clear();
+        selectedFaces.Clear();
+    }
+
     private void SetInteractionMode(EditorInteractionMode mode)
     {
         if (interactionMode == mode) return;
@@ -365,7 +451,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         shiftSubmeshSelection = false;
         ctrlSubmeshSelection = false;
         suppressNextSceneClick = false;
-        selectedVertices.Clear();
+        ClearGeometrySelection();
         selectedBoneElements.Clear();
         subscribedScene?.Mouse.ResetClickSequence();
         ApplyRenderState();
@@ -514,7 +600,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         selectedSubmeshes.Add(submesh);
         submeshSelectionAnchor = submesh;
         scrollToSubmesh = submesh;
-        selectedVertices.Clear();
+        ClearGeometrySelection();
         ApplyRenderState();
     }
 
@@ -525,7 +611,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
             selectedArmatures.Clear();
             submeshSelectionAnchor = null;
             scrollToSubmesh = null;
-            selectedVertices.Clear();
+            ClearGeometrySelection();
         }
         selectedArmatures.Add(context);
         selectedBoneElements.Clear();
@@ -556,7 +642,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
             submeshSelectionAnchor = submesh;
         }
         if (scrollToSelected) scrollToSubmesh = submesh;
-        selectedVertices.Clear();
+        ClearGeometrySelection();
         ApplyRenderState();
     }
 
@@ -566,7 +652,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
             selectedSubmeshes.Clear();
             submeshSelectionAnchor = null;
             scrollToSubmesh = null;
-            selectedVertices.Clear();
+            ClearGeometrySelection();
         }
         if (ctrl) {
             if (!selectedArmatures.Add(context)) selectedArmatures.Remove(context);
@@ -611,7 +697,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         selectedArmatures.Clear();
         selectedArmatures.UnionWith(armatures);
         submeshSelectionAnchor = submeshes.Count > 0 ? submeshes[0] : null;
-        selectedVertices.Clear();
+        ClearGeometrySelection();
         selectedBoneElements.Clear();
         ApplyRenderState();
     }
@@ -656,6 +742,8 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         selectedArmatures.RemoveWhere(hiddenArmatures.Contains);
         var hiddenSubmeshContexts = hiddenSubmeshes.Select(submesh => submesh.Context).ToHashSet();
         selectedVertices.RemoveWhere(vertex => hiddenSubmeshContexts.Contains(vertex.Context));
+        selectedEdges.RemoveWhere(edge => hiddenSubmeshContexts.Contains(edge.First.Context));
+        selectedFaces.RemoveWhere(face => hiddenSubmeshContexts.Contains(face.Context));
         selectedBoneElements.RemoveWhere(element => hiddenArmatures.Contains(element.Bone.Context));
         if (submeshSelectionAnchor is { } anchor && hiddenSubmeshes.Contains(anchor)) submeshSelectionAnchor = null;
         if (scrollToSubmesh is { } scrollTarget && hiddenSubmeshes.Contains(scrollTarget)) scrollToSubmesh = null;
@@ -664,16 +752,22 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
 
     private void ToggleAllEditableElements()
     {
-        var vertices = EnumerateEditableVertices().ToArray();
+        var vertices = geometrySelectionMode == GeometrySelectionMode.Vertex ? EnumerateEditableVertices().ToArray() : [];
+        var edges = geometrySelectionMode == GeometrySelectionMode.Edge ? EnumerateEditableEdges().ToArray() : [];
+        var faces = geometrySelectionMode == GeometrySelectionMode.Face ? EnumerateEditableFaces().Select(face => face.Reference).ToArray() : [];
         var boneElements = EnumerateEditableBoneElements().ToArray();
-        if ((vertices.Length > 0 || boneElements.Length > 0)
+        if ((vertices.Length > 0 || edges.Length > 0 || faces.Length > 0 || boneElements.Length > 0)
             && vertices.All(selectedVertices.Contains)
+            && edges.All(selectedEdges.Contains)
+            && faces.All(selectedFaces.Contains)
             && boneElements.All(selectedBoneElements.Contains)) {
-            selectedVertices.Clear();
+            ClearGeometrySelection();
             selectedBoneElements.Clear();
         } else {
-            selectedVertices.Clear();
+            ClearGeometrySelection();
             selectedVertices.UnionWith(vertices);
+            selectedEdges.UnionWith(edges);
+            selectedFaces.UnionWith(faces);
             selectedBoneElements.Clear();
             selectedBoneElements.UnionWith(boneElements);
         }
@@ -684,7 +778,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         selectedSubmeshes.Clear();
         submeshSelectionAnchor = null;
         scrollToSubmesh = null;
-        selectedVertices.Clear();
+        ClearGeometrySelection();
         ApplyRenderState();
     }
 
@@ -700,7 +794,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         var boneHit = FindClosestBone(viewportPosition, selectedArmatures);
         if (boneHit is { } hit) {
             if (!extendSelection && !toggleSelection) {
-                selectedVertices.Clear();
+                ClearGeometrySelection();
                 selectedBoneElements.Clear();
             }
             if (toggleSelection) {
@@ -712,16 +806,36 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         }
 
         if (!extendSelection && !toggleSelection) selectedBoneElements.Clear();
-        SelectVertex(viewportPosition, extendSelection, toggleSelection);
+        switch (geometrySelectionMode) {
+            case GeometrySelectionMode.Vertex:
+                SelectVertex(viewportPosition, extendSelection, toggleSelection);
+                break;
+            case GeometrySelectionMode.Edge:
+                SelectEdge(viewportPosition, extendSelection, toggleSelection);
+                break;
+            case GeometrySelectionMode.Face:
+                SelectFace(viewportPosition, extendSelection, toggleSelection);
+                break;
+        }
     }
 
     private void SelectElementsInBox(Vector2 start, Vector2 end, bool extendSelection, bool toggleSelection)
     {
         if (!extendSelection && !toggleSelection) {
-            selectedVertices.Clear();
+            ClearGeometrySelection();
             selectedBoneElements.Clear();
         }
-        SelectVerticesInBox(start, end, true, toggleSelection);
+        switch (geometrySelectionMode) {
+            case GeometrySelectionMode.Vertex:
+                SelectVerticesInBox(start, end, true, toggleSelection);
+                break;
+            case GeometrySelectionMode.Edge:
+                SelectEdgesInBox(start, end, true, toggleSelection);
+                break;
+            case GeometrySelectionMode.Face:
+                SelectFacesInBox(start, end, true, toggleSelection);
+                break;
+        }
         SelectBonesInBox(start, end, toggleSelection);
     }
 
@@ -781,7 +895,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         }
         selectedSubmeshes.UnionWith(boxedSubmeshes);
         selectedArmatures.UnionWith(boxedArmatures);
-        selectedVertices.Clear();
+        ClearGeometrySelection();
         selectedBoneElements.Clear();
         submeshSelectionAnchor = boxedSubmeshes.Count > 0 ? boxedSubmeshes.First() : null;
         scrollToSubmesh = null;
@@ -902,6 +1016,163 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         return Vector2.DistanceSquared(point, start + segment * amount);
     }
 
+    private void SelectEdge(Vector2 viewportPosition, bool extendSelection, bool toggleSelection)
+    {
+        var radiusSquared = vertexSelectionRadius * vertexSelectionRadius;
+        var candidates = new List<(EdgeReference edge, Vector3 viewport, float distanceSquared)>();
+        foreach (var edge in EnumerateEditableEdges()) {
+            var first = GetVertexViewportPosition(edge.First);
+            var second = GetVertexViewportPosition(edge.Second);
+            if (first.X == float.MaxValue || second.X == float.MaxValue) continue;
+            var segment = new Vector2(second.X - first.X, second.Y - first.Y);
+            var lengthSquared = segment.LengthSquared();
+            var amount = lengthSquared <= float.Epsilon
+                ? 0.0f
+                : Math.Clamp(Vector2.Dot(viewportPosition - new Vector2(first.X, first.Y), segment) / lengthSquared, 0.0f, 1.0f);
+            var closestPoint = Vector3.Lerp(first, second, amount);
+            var distanceSquared = Vector2.DistanceSquared(viewportPosition, new Vector2(closestPoint.X, closestPoint.Y));
+            if (distanceSquared <= radiusSquared) candidates.Add((edge, closestPoint, distanceSquared));
+        }
+        candidates.Sort(static (left, right) => left.distanceSquared.CompareTo(right.distanceSquared));
+
+        using var depth = ReadSelectionDepth(
+            viewportPosition - new Vector2(vertexSelectionRadius),
+            viewportPosition + new Vector2(vertexSelectionRadius));
+        EdgeReference? closest = null;
+        foreach (var candidate in candidates) {
+            if (!IsVertexVisible(candidate.viewport, depth)) continue;
+            closest = candidate.edge;
+            break;
+        }
+
+        if (!extendSelection && !toggleSelection) ClearGeometrySelection();
+        if (closest is not { } selected) return;
+        if (toggleSelection) {
+            if (!selectedEdges.Add(selected)) selectedEdges.Remove(selected);
+        } else {
+            selectedEdges.Add(selected);
+        }
+    }
+
+    private void SelectFace(Vector2 viewportPosition, bool extendSelection, bool toggleSelection)
+    {
+        var closest = FindHitFace(viewportPosition);
+        if (!extendSelection && !toggleSelection) ClearGeometrySelection();
+        if (closest is not { } selected) return;
+        if (toggleSelection) {
+            if (!selectedFaces.Add(selected)) selectedFaces.Remove(selected);
+        } else {
+            selectedFaces.Add(selected);
+        }
+    }
+
+    private FaceReference? FindHitFace(Vector2 viewportPosition)
+    {
+        if (subscribedScene == null) return null;
+        var ray = subscribedScene.ActiveCamera.ViewportToRay(viewportPosition);
+        FaceReference? closest = null;
+        var closestDistance = float.MaxValue;
+        foreach (var group in selectedSubmeshes.GroupBy(submesh => submesh.Context)) {
+            var context = group.Key;
+            var handle = context.Component.MeshHandle;
+            if (handle == null || !context.GameObject.ShouldDraw) continue;
+            var allowed = group
+                .Where(submesh => !hiddenSubmeshes.Contains(submesh)
+                    && (uint)submesh.Index < (uint)handle.MeshCount
+                    && handle.GetMeshPartEnabled(handle.GetMesh(submesh.Index).MeshGroup))
+                .Select(submesh => submesh.Index)
+                .ToHashSet();
+            if (allowed.Count == 0) continue;
+            var excluded = Enumerable.Range(0, handle.MeshCount).Where(index => !allowed.Contains(index)).ToHashSet();
+            var hit = handle.Handle.GetIntersection(ray, context.GameObject.Transform.WorldTransform, excluded);
+            if (!hit.IsHit || hit.distanceSquared >= closestDistance) continue;
+            var reference = new FaceReference(context, hit.meshIndex, hit.triangleIndex);
+            if (!TryGetFaceVertices(reference, out _)) continue;
+            closest = reference;
+            closestDistance = hit.distanceSquared;
+        }
+        return closest;
+    }
+
+    private void SelectEdgesInBox(Vector2 start, Vector2 end, bool extendSelection, bool toggleSelection)
+    {
+        if (subscribedScene == null) return;
+        var min = Vector2.Min(start, end);
+        var max = Vector2.Max(start, end);
+        using var depth = ReadSelectionDepth(min, max);
+        var boxed = new HashSet<EdgeReference>();
+        foreach (var edge in EnumerateEditableEdges()) {
+            var first = GetVertexViewportPosition(edge.First);
+            var second = GetVertexViewportPosition(edge.Second);
+            if (first.X == float.MaxValue || second.X == float.MaxValue
+                || !SegmentIntersectsRectangle(new Vector2(first.X, first.Y), new Vector2(second.X, second.Y), min, max)) continue;
+            var midpoint = (first + second) * 0.5f;
+            if (IsVertexVisible(midpoint, depth) || IsVertexVisible(first, depth) || IsVertexVisible(second, depth)) boxed.Add(edge);
+        }
+
+        if (!extendSelection && !toggleSelection) ClearGeometrySelection();
+        if (toggleSelection) {
+            foreach (var edge in boxed) {
+                if (!selectedEdges.Add(edge)) selectedEdges.Remove(edge);
+            }
+        } else {
+            selectedEdges.UnionWith(boxed);
+        }
+    }
+
+    private void SelectFacesInBox(Vector2 start, Vector2 end, bool extendSelection, bool toggleSelection)
+    {
+        if (subscribedScene == null) return;
+        var min = Vector2.Min(start, end);
+        var max = Vector2.Max(start, end);
+        using var depth = ReadSelectionDepth(min, max);
+        var boxed = new HashSet<FaceReference>();
+        foreach (var face in EnumerateEditableFaces()) {
+            var first = GetVertexViewportPosition(face.First);
+            var second = GetVertexViewportPosition(face.Second);
+            var third = GetVertexViewportPosition(face.Third);
+            if (first.X == float.MaxValue || second.X == float.MaxValue || third.X == float.MaxValue) continue;
+            var first2 = new Vector2(first.X, first.Y);
+            var second2 = new Vector2(second.X, second.Y);
+            var third2 = new Vector2(third.X, third.Y);
+            if (!TriangleIntersectsRectangle(first2, second2, third2, min, max)) continue;
+            var center = (first + second + third) / 3.0f;
+            if (IsVertexVisible(center, depth) || IsVertexVisible(first, depth)
+                || IsVertexVisible(second, depth) || IsVertexVisible(third, depth)) boxed.Add(face.Reference);
+        }
+
+        if (!extendSelection && !toggleSelection) ClearGeometrySelection();
+        if (toggleSelection) {
+            foreach (var face in boxed) {
+                if (!selectedFaces.Add(face)) selectedFaces.Remove(face);
+            }
+        } else {
+            selectedFaces.UnionWith(boxed);
+        }
+    }
+
+    private static bool TriangleIntersectsRectangle(Vector2 first, Vector2 second, Vector2 third, Vector2 min, Vector2 max)
+    {
+        if (PointInRectangle(first, min, max) || PointInRectangle(second, min, max) || PointInRectangle(third, min, max)) return true;
+        var topRight = new Vector2(max.X, min.Y);
+        var bottomLeft = new Vector2(min.X, max.Y);
+        if (PointInTriangle(min, first, second, third) || PointInTriangle(topRight, first, second, third)
+            || PointInTriangle(max, first, second, third) || PointInTriangle(bottomLeft, first, second, third)) return true;
+        return SegmentIntersectsRectangle(first, second, min, max)
+            || SegmentIntersectsRectangle(second, third, min, max)
+            || SegmentIntersectsRectangle(third, first, min, max);
+    }
+
+    private static bool PointInTriangle(Vector2 point, Vector2 first, Vector2 second, Vector2 third)
+    {
+        var firstSign = Cross(second - first, point - first);
+        var secondSign = Cross(third - second, point - second);
+        var thirdSign = Cross(first - third, point - third);
+        var hasNegative = firstSign < 0 || secondSign < 0 || thirdSign < 0;
+        var hasPositive = firstSign > 0 || secondSign > 0 || thirdSign > 0;
+        return !(hasNegative && hasPositive);
+    }
+
     private void SelectVertex(Vector2 viewportPosition, bool extendSelection, bool toggleSelection)
     {
         if (subscribedScene == null) return;
@@ -1001,6 +1272,95 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         }
     }
 
+    private IEnumerable<FaceVertices> EnumerateEditableFaces()
+    {
+        foreach (var selectedSubmesh in selectedSubmeshes) {
+            var context = selectedSubmesh.Context;
+            var handle = context.Component.MeshHandle;
+            if (handle == null || !context.GameObject.ShouldDraw || hiddenSubmeshes.Contains(selectedSubmesh)
+                || (uint)selectedSubmesh.Index >= (uint)handle.MeshCount) continue;
+            var renderMesh = handle.GetMesh(selectedSubmesh.Index);
+            if (!handle.GetMeshPartEnabled(renderMesh.MeshGroup)) continue;
+            var triangleCount = renderMesh.Indices.Length / 3;
+            for (var triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
+                var reference = new FaceReference(context, selectedSubmesh.Index, triangleIndex);
+                if (TryGetFaceVertices(reference, out var face)) yield return face;
+            }
+        }
+    }
+
+    private IEnumerable<EdgeReference> EnumerateEditableEdges()
+    {
+        var seen = new HashSet<EdgeReference>();
+        foreach (var face in EnumerateEditableFaces()) {
+            var first = CreateEdge(face.First, face.Second);
+            var second = CreateEdge(face.Second, face.Third);
+            var third = CreateEdge(face.Third, face.First);
+            if (seen.Add(first)) yield return first;
+            if (seen.Add(second)) yield return second;
+            if (seen.Add(third)) yield return third;
+        }
+    }
+
+    private bool TryGetFaceVertices(FaceReference reference, out FaceVertices face)
+    {
+        face = default;
+        var handle = reference.Context.Component.MeshHandle;
+        if (handle == null || (uint)reference.SubmeshIndex >= (uint)handle.MeshCount) return false;
+        var cache = GetSubmeshCache(reference.Context);
+        if ((uint)reference.SubmeshIndex >= (uint)cache.Submeshes.Length) return false;
+        var renderMesh = handle.GetMesh(reference.SubmeshIndex);
+        var indexOffset = reference.TriangleIndex * 3;
+        if (indexOffset < 0 || indexOffset + 2 >= renderMesh.Indices.Length) return false;
+        var submesh = cache.Submeshes[reference.SubmeshIndex];
+        var firstIndex = renderMesh.Indices[indexOffset];
+        var secondIndex = renderMesh.Indices[indexOffset + 1];
+        var thirdIndex = renderMesh.Indices[indexOffset + 2];
+        if ((uint)firstIndex >= (uint)submesh.vertCount || (uint)secondIndex >= (uint)submesh.vertCount
+            || (uint)thirdIndex >= (uint)submesh.vertCount) return false;
+        face = new FaceVertices(
+            reference,
+            new VertexReference(reference.Context, submesh.Buffer, submesh.vertsIndexOffset + firstIndex),
+            new VertexReference(reference.Context, submesh.Buffer, submesh.vertsIndexOffset + secondIndex),
+            new VertexReference(reference.Context, submesh.Buffer, submesh.vertsIndexOffset + thirdIndex));
+        return true;
+    }
+
+    private static EdgeReference CreateEdge(VertexReference first, VertexReference second) =>
+        first.Index <= second.Index ? new EdgeReference(first, second) : new EdgeReference(second, first);
+
+    private Vector3 GetVertexViewportPosition(VertexReference vertex)
+    {
+        if (subscribedScene == null) return new Vector3(float.MaxValue);
+        var world = GetVertexWorldPosition(vertex, vertex.Buffer.Positions[vertex.Index]);
+        return subscribedScene.ActiveCamera.WorldToViewportPosition(world, true, true);
+    }
+
+    private HashSet<VertexReference> GetSelectedGeometryVertices()
+    {
+        var vertices = new HashSet<VertexReference>();
+        switch (geometrySelectionMode) {
+            case GeometrySelectionMode.Vertex:
+                vertices.UnionWith(selectedVertices);
+                break;
+            case GeometrySelectionMode.Edge:
+                foreach (var edge in selectedEdges) {
+                    vertices.Add(edge.First);
+                    vertices.Add(edge.Second);
+                }
+                break;
+            case GeometrySelectionMode.Face:
+                foreach (var reference in selectedFaces) {
+                    if (!TryGetFaceVertices(reference, out var face)) continue;
+                    vertices.Add(face.First);
+                    vertices.Add(face.Second);
+                    vertices.Add(face.Third);
+                }
+                break;
+        }
+        return vertices;
+    }
+
     private IEnumerable<BoneElementReference> EnumerateEditableBoneElements()
     {
         foreach (var context in selectedArmatures) {
@@ -1016,9 +1376,9 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         }
     }
 
-    private Dictionary<VertexReference, Vector3> BuildMirroredVertexMoveSet()
+    private Dictionary<VertexReference, Vector3> BuildMirroredVertexMoveSet(IReadOnlyCollection<VertexReference> selectedGeometryVertices)
     {
-        var result = selectedVertices.ToDictionary(vertex => vertex, _ => Vector3.One);
+        var result = selectedGeometryVertices.ToDictionary(vertex => vertex, _ => Vector3.One);
         var mirrorSigns = GetMirrorSigns().ToArray();
         if (mirrorSigns.Length == 0 || mirrorRadius <= 0) return result;
 
@@ -1026,7 +1386,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
             .Select(vertex => (reference: vertex, position: GetVertexWorldPosition(vertex, vertex.Buffer.Positions[vertex.Index])))
             .GroupBy(candidate => candidate.reference.Context)
             .ToDictionary(group => group.Key, group => BuildMirrorGrid(group, mirrorRadius));
-        foreach (var source in selectedVertices) {
+        foreach (var source in selectedGeometryVertices) {
             if (!candidates.TryGetValue(source.Context, out var grid)) continue;
             var sourcePosition = GetVertexWorldPosition(source, source.Buffer.Positions[source.Index]);
             var origin = Vector3.Transform(Vector3.Zero, source.Context.GameObject.Transform.WorldTransform);
@@ -1125,10 +1485,11 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
 
     private void BeginMove()
     {
-        if (subscribedScene == null || selectedVertices.Count == 0 && selectedBoneElements.Count == 0) return;
+        var selectedGeometryVertices = GetSelectedGeometryVertices();
+        if (subscribedScene == null || selectedGeometryVertices.Count == 0 && selectedBoneElements.Count == 0) return;
 
         foreach (var context in selectedBoneElements.Select(element => element.Bone.Context).Distinct()) context.Animator?.Stop();
-        moveVertexDeltaSigns = selectedVertices.Count > 0 ? BuildMirroredVertexMoveSet() : null;
+        moveVertexDeltaSigns = selectedGeometryVertices.Count > 0 ? BuildMirroredVertexMoveSet(selectedGeometryVertices) : null;
         moveBoneDeltaSigns = selectedBoneElements.Count > 0 ? BuildMirroredBoneMoveSet() : null;
         moveOriginalPositions = moveVertexDeltaSigns != null
             ? moveVertexDeltaSigns.Keys.ToDictionary(vertex => vertex, vertex => vertex.Buffer.Positions[vertex.Index])
@@ -1139,7 +1500,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         moveAnchorWorld = Vector3.Zero;
         var anchorCount = 0;
         if (moveOriginalPositions != null) {
-            foreach (var vertex in selectedVertices) {
+            foreach (var vertex in selectedGeometryVertices) {
                 moveAnchorWorld += GetVertexWorldPosition(vertex, moveOriginalPositions[vertex]);
                 anchorCount++;
             }
@@ -1514,24 +1875,51 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         drawList.PopClipRect();
     }
 
-    private void DrawSelectedVertices(Vector2 viewportPosition, Vector2 viewportSize)
+    private void DrawSelectedGeometry(Vector2 viewportPosition, Vector2 viewportSize)
     {
-        if (subscribedScene == null || selectedVertices.Count == 0) return;
+        if (subscribedScene == null || !HasSelectedGeometry) return;
         var drawList = ImGui.GetWindowDrawList();
         var camera = subscribedScene.ActiveCamera;
         var color = ImGui.GetColorU32(new Vector4(1.0f, 0.85f, 0.15f, 1.0f));
+        var faceColor = ImGui.GetColorU32(new Vector4(1.0f, 0.48f, 0.05f, 0.28f));
         var outlineColor = 0xff000000;
-        var radii = selectedVertices.Select(vertex => vertex.Context).Distinct()
-            .ToDictionary(context => context, context => Math.Max(GetAdaptiveVertexPointSize(context) + 1.0f, 2.0f));
-        foreach (var vertex in selectedVertices) {
-            var radius = radii[vertex.Context];
-            var world = GetVertexWorldPosition(vertex, vertex.Buffer.Positions[vertex.Index]);
-            var screen = camera.WorldToScreenPosition(world, true, true);
-            if (screen.X == float.MaxValue || screen.X < viewportPosition.X || screen.Y < viewportPosition.Y
-                || screen.X > viewportPosition.X + viewportSize.X || screen.Y > viewportPosition.Y + viewportSize.Y) continue;
-            drawList.AddRectFilled(screen - new Vector2(radius + 1.0f), screen + new Vector2(radius + 1.0f), outlineColor);
-            drawList.AddRectFilled(screen - new Vector2(radius), screen + new Vector2(radius), color);
+        drawList.PushClipRect(viewportPosition, viewportPosition + viewportSize, true);
+        if (geometrySelectionMode == GeometrySelectionMode.Vertex) {
+            var radii = selectedVertices.Select(vertex => vertex.Context).Distinct()
+                .ToDictionary(context => context, context => Math.Max(GetAdaptiveVertexPointSize(context) + 1.0f, 2.0f));
+            foreach (var vertex in selectedVertices) {
+                var radius = radii[vertex.Context];
+                var screen = GetVertexScreenPosition(vertex, camera);
+                if (screen.X == float.MaxValue) continue;
+                drawList.AddRectFilled(screen - new Vector2(radius + 1.0f), screen + new Vector2(radius + 1.0f), outlineColor);
+                drawList.AddRectFilled(screen - new Vector2(radius), screen + new Vector2(radius), color);
+            }
+        } else if (geometrySelectionMode == GeometrySelectionMode.Edge) {
+            foreach (var edge in selectedEdges) {
+                var first = GetVertexScreenPosition(edge.First, camera);
+                var second = GetVertexScreenPosition(edge.Second, camera);
+                if (first.X == float.MaxValue || second.X == float.MaxValue) continue;
+                drawList.AddLine(first, second, outlineColor, 4.0f * UI.UIScale);
+                drawList.AddLine(first, second, color, 2.0f * UI.UIScale);
+            }
+        } else {
+            foreach (var reference in selectedFaces) {
+                if (!TryGetFaceVertices(reference, out var face)) continue;
+                var first = GetVertexScreenPosition(face.First, camera);
+                var second = GetVertexScreenPosition(face.Second, camera);
+                var third = GetVertexScreenPosition(face.Third, camera);
+                if (first.X == float.MaxValue || second.X == float.MaxValue || third.X == float.MaxValue) continue;
+                drawList.AddTriangleFilled(first, second, third, faceColor);
+                drawList.AddTriangle(first, second, third, color, 2.0f * UI.UIScale);
+            }
         }
+        drawList.PopClipRect();
+    }
+
+    private static Vector2 GetVertexScreenPosition(VertexReference vertex, Camera camera)
+    {
+        var world = GetVertexWorldPosition(vertex, vertex.Buffer.Positions[vertex.Index]);
+        return camera.WorldToScreenPosition(world, true, true);
     }
 
     private void DrawBoxSelection(Vector2 viewportPosition)
@@ -1687,7 +2075,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
             var editMode = IsEnabled && interactionMode == EditorInteractionMode.Edit;
             var editIndices = editMode ? selectedIndices : null;
             var wireframeOverlay = context.Component.Scene?.WireframeOverlay == true;
-            var showEditVertices = editMode && selectedIndices.Count > 0;
+            var showEditVertices = editMode && geometrySelectionMode == GeometrySelectionMode.Vertex && selectedIndices.Count > 0;
             var previewActive = DisplayMode != MeshDisplayMode.Default
                 || hiddenIndices?.Count > 0
                 || highlightedIndices?.Count > 0

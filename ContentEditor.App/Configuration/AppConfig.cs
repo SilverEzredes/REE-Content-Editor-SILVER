@@ -120,6 +120,9 @@ public class AppConfig : Singleton<AppConfig>
         public const string Key_MeshViewer_PivotCameraZoomInvert = "key_meshviewer_pivot_camera_zoom_invert";
         public const string Key_MeshViewer_MoveGeometry = "key_meshviewer_move_geometry";
         public const string Key_MeshViewer_SelectAll = "key_meshviewer_select_all";
+        public const string Key_MeshViewer_VertexSelection = "key_meshviewer_vertex_selection";
+        public const string Key_MeshViewer_EdgeSelection = "key_meshviewer_edge_selection";
+        public const string Key_MeshViewer_FaceSelection = "key_meshviewer_face_selection";
         public const string Key_TextureViewer_ResetView = "key_textureviewer_resetview";
         public const string Key_TextureViewer_ZoomIn = "key_textureviewer_zoomin";
         public const string Key_TextureViewer_ZoomOut = "key_textureviewer_zoomout";
@@ -415,6 +418,9 @@ public class AppConfig : Singleton<AppConfig>
     public readonly SettingWrapper<bool> Key_MeshViewer_PivotCameraZoomInvert = new SettingWrapper<bool>(Keys.Key_MeshViewer_PivotCameraZoomInvert, _lock, false);
     public readonly SettingWrapper<KeyBinding> Key_MeshViewer_MoveGeometry = new SettingWrapper<KeyBinding>(Keys.Key_MeshViewer_MoveGeometry, _lock, new KeyBinding(ImGuiKey.G));
     public readonly SettingWrapper<KeyBinding> Key_MeshViewer_SelectAll = new SettingWrapper<KeyBinding>(Keys.Key_MeshViewer_SelectAll, _lock, new KeyBinding(ImGuiKey.A));
+    public readonly SettingWrapper<KeyBinding> Key_MeshViewer_VertexSelection = new SettingWrapper<KeyBinding>(Keys.Key_MeshViewer_VertexSelection, _lock, new KeyBinding(ImGuiKey.Key1));
+    public readonly SettingWrapper<KeyBinding> Key_MeshViewer_EdgeSelection = new SettingWrapper<KeyBinding>(Keys.Key_MeshViewer_EdgeSelection, _lock, new KeyBinding(ImGuiKey.Key2));
+    public readonly SettingWrapper<KeyBinding> Key_MeshViewer_FaceSelection = new SettingWrapper<KeyBinding>(Keys.Key_MeshViewer_FaceSelection, _lock, new KeyBinding(ImGuiKey.Key3));
     public readonly SettingWrapper<KeyBinding> Key_TextureViewer_ResetView = new SettingWrapper<KeyBinding>(Keys.Key_TextureViewer_ResetView, _lock, new KeyBinding(ImGuiKey.Keypad0, ctrl: true));
     public readonly SettingWrapper<KeyBinding> Key_TextureViewer_ZoomIn = new SettingWrapper<KeyBinding>(Keys.Key_TextureViewer_ZoomIn, _lock, new KeyBinding(ImGuiKey.Equal, ctrl: true));
     public readonly SettingWrapper<KeyBinding> Key_TextureViewer_ZoomOut = new SettingWrapper<KeyBinding>(Keys.Key_TextureViewer_ZoomOut, _lock, new KeyBinding(ImGuiKey.Minus, ctrl: true));
@@ -626,6 +632,9 @@ public class AppConfig : Singleton<AppConfig>
             (Keys.Key_MeshViewer_PivotCameraZoomInvert, instance.Key_MeshViewer_PivotCameraZoomInvert.value.ToString(), "Keys"),
             (Keys.Key_MeshViewer_MoveGeometry, instance.Key_MeshViewer_MoveGeometry.value.ToString(), "Keys"),
             (Keys.Key_MeshViewer_SelectAll, instance.Key_MeshViewer_SelectAll.value.ToString(), "Keys"),
+            (Keys.Key_MeshViewer_VertexSelection, instance.Key_MeshViewer_VertexSelection.value.ToString(), "Keys"),
+            (Keys.Key_MeshViewer_EdgeSelection, instance.Key_MeshViewer_EdgeSelection.value.ToString(), "Keys"),
+            (Keys.Key_MeshViewer_FaceSelection, instance.Key_MeshViewer_FaceSelection.value.ToString(), "Keys"),
             (Keys.Key_TextureViewer_ResetView, instance.Key_TextureViewer_ResetView.value.ToString(), "Keys"),
             (Keys.Key_TextureViewer_ZoomIn, instance.Key_TextureViewer_ZoomIn.value.ToString(), "Keys"),
             (Keys.Key_TextureViewer_ZoomOut, instance.Key_TextureViewer_ZoomOut.value.ToString(), "Keys"),
@@ -920,6 +929,9 @@ public class AppConfig : Singleton<AppConfig>
                         case Keys.Key_MeshViewer_PivotCameraZoomInvert: Key_MeshViewer_PivotCameraZoomInvert.value = ReadBool(value); break;
                         case Keys.Key_MeshViewer_MoveGeometry: if (KeyBinding.TryParse(value, out _key)) Key_MeshViewer_MoveGeometry.value = _key; break;
                         case Keys.Key_MeshViewer_SelectAll: if (KeyBinding.TryParse(value, out _key)) Key_MeshViewer_SelectAll.value = _key; break;
+                        case Keys.Key_MeshViewer_VertexSelection: if (KeyBinding.TryParse(value, out _key)) Key_MeshViewer_VertexSelection.value = _key; break;
+                        case Keys.Key_MeshViewer_EdgeSelection: if (KeyBinding.TryParse(value, out _key)) Key_MeshViewer_EdgeSelection.value = _key; break;
+                        case Keys.Key_MeshViewer_FaceSelection: if (KeyBinding.TryParse(value, out _key)) Key_MeshViewer_FaceSelection.value = _key; break;
                         case Keys.Key_TextureViewer_ResetView: if (KeyBinding.TryParse(value, out _key)) Key_TextureViewer_ResetView.value = _key; break;
                         case Keys.Key_TextureViewer_ZoomIn: if (KeyBinding.TryParse(value, out _key)) Key_TextureViewer_ZoomIn.value = _key; break;
                         case Keys.Key_TextureViewer_ZoomOut: if (KeyBinding.TryParse(value, out _key)) Key_TextureViewer_ZoomOut.value = _key; break;

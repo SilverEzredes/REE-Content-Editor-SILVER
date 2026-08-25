@@ -120,10 +120,16 @@ public class ImGuiController : IDisposable
     private static void OnKeyEvent(IKeyboard keyboard, Key keycode, int scancode, bool down)
     {
         var io = global::Hexa.NET.ImGui.ImGui.GetIO();
-        var imGuiKey = TranslateInputKeyToImGuiKey(keycode);
-        if (imGuiKey != ImGuiKey.None) {
-            io.AddKeyEvent(imGuiKey, down);
-            io.SetKeyEventNativeData(imGuiKey, (int)keycode, scancode);
+        var keys = TranslateInputKeyToImGuiKeys(keycode);
+
+        Submit(keys.Primary);
+        Submit(keys.Additional);
+
+        void Submit(ImGuiKey key)
+        {
+            if (key == ImGuiKey.None) return;
+            io.AddKeyEvent(key, down);
+            io.SetKeyEventNativeData(key, (int)keycode, scancode);
         }
     }
 
@@ -276,7 +282,7 @@ public class ImGuiController : IDisposable
     /// </summary>
     /// <param name="key">The Silk.NET.Input.Key to translate.</param>
     /// <returns>The corresponding ImGuiKey.</returns>
-    private static ImGuiKey TranslateInputKeyToImGuiKey(Key key)
+    private static ImGuiKeyMapping TranslateInputKeyToImGuiKeys(Key key)
     {
         return key switch {
             Key.Tab => ImGuiKey.Tab,
@@ -336,16 +342,16 @@ public class ImGuiController : IDisposable
             Key.AltRight => ImGuiKey.RightAlt,
             Key.SuperRight => ImGuiKey.RightSuper,
             Key.Menu => ImGuiKey.Menu,
-            Key.Number0 => ImGuiKey.Keypad0,
-            Key.Number1 => ImGuiKey.Keypad1,
-            Key.Number2 => ImGuiKey.Keypad2,
-            Key.Number3 => ImGuiKey.Keypad3,
-            Key.Number4 => ImGuiKey.Keypad4,
-            Key.Number5 => ImGuiKey.Keypad5,
-            Key.Number6 => ImGuiKey.Keypad6,
-            Key.Number7 => ImGuiKey.Keypad7,
-            Key.Number8 => ImGuiKey.Keypad8,
-            Key.Number9 => ImGuiKey.Keypad9,
+            Key.Number0 => new ImGuiKeyMapping(ImGuiKey.Keypad0, ImGuiKey.Key0),
+            Key.Number1 => new ImGuiKeyMapping(ImGuiKey.Keypad1, ImGuiKey.Key1),
+            Key.Number2 => new ImGuiKeyMapping(ImGuiKey.Keypad2, ImGuiKey.Key2),
+            Key.Number3 => new ImGuiKeyMapping(ImGuiKey.Keypad3, ImGuiKey.Key3),
+            Key.Number4 => new ImGuiKeyMapping(ImGuiKey.Keypad4, ImGuiKey.Key4),
+            Key.Number5 => new ImGuiKeyMapping(ImGuiKey.Keypad5, ImGuiKey.Key5),
+            Key.Number6 => new ImGuiKeyMapping(ImGuiKey.Keypad6, ImGuiKey.Key6),
+            Key.Number7 => new ImGuiKeyMapping(ImGuiKey.Keypad7, ImGuiKey.Key7),
+            Key.Number8 => new ImGuiKeyMapping(ImGuiKey.Keypad8, ImGuiKey.Key8),
+            Key.Number9 => new ImGuiKeyMapping(ImGuiKey.Keypad9, ImGuiKey.Key9),
             Key.A => ImGuiKey.A,
             Key.B => ImGuiKey.B,
             Key.C => ImGuiKey.C,
@@ -398,6 +404,11 @@ public class ImGuiController : IDisposable
             Key.F24 => ImGuiKey.F24,
             _ => ImGuiKey.None,
         };
+    }
+
+    private readonly record struct ImGuiKeyMapping(ImGuiKey Primary, ImGuiKey Additional = ImGuiKey.None)
+    {
+        public static implicit operator ImGuiKeyMapping(ImGuiKey key) => new(key);
     }
 
     private unsafe void SetupRenderState(ImDrawDataPtr drawDataPtr, int framebufferWidth, int framebufferHeight)

@@ -244,6 +244,9 @@ public class OverlaysWindow : IWindowHandler
             new HotkeyHint { Description = Lang.Settings.Bind_MeshViewer_IncreaseAnimSpeed, Hotkey = () => AppImguiHelpers.FormatHotkeyString(AppConfig.Instance.Key_MeshViewer_IncreaseAnimSpeed.Get())},
             new HotkeyHint { Description = Lang.Settings.Bind_MeshViewer_DecreaseAnimSpeed, Hotkey = () => AppImguiHelpers.FormatHotkeyString(AppConfig.Instance.Key_MeshViewer_DecreaseAnimSpeed.Get())},
             new HotkeyHint { Description = "Mesh Editor", IsSeparator = true},
+            new HotkeyHint { Description = Lang.Settings.Bind_MeshViewer_VertexSelection, Hotkey = () => AppImguiHelpers.FormatHotkeyString(AppConfig.Instance.Key_MeshViewer_VertexSelection.Get())},
+            new HotkeyHint { Description = Lang.Settings.Bind_MeshViewer_EdgeSelection, Hotkey = () => AppImguiHelpers.FormatHotkeyString(AppConfig.Instance.Key_MeshViewer_EdgeSelection.Get())},
+            new HotkeyHint { Description = Lang.Settings.Bind_MeshViewer_FaceSelection, Hotkey = () => AppImguiHelpers.FormatHotkeyString(AppConfig.Instance.Key_MeshViewer_FaceSelection.Get())},
             new HotkeyHint { Description = Lang.Settings.Bind_MeshViewer_MoveGeometry, Hotkey = () => AppImguiHelpers.FormatHotkeyString(AppConfig.Instance.Key_MeshViewer_MoveGeometry.Get())},
             new HotkeyHint { Description = Lang.Settings.Bind_MeshViewer_SelectAll, Hotkey = () => AppImguiHelpers.FormatHotkeyString(AppConfig.Instance.Key_MeshViewer_SelectAll.Get())},
         }

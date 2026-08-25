@@ -156,6 +156,9 @@ public static partial class Lang
         public static readonly FixedString Bind_MeshViewer_CameraZoom = "Camera Zoom";
         public static readonly FixedString Bind_MeshViewer_MoveGeometry = "Move Geometry";
         public static readonly FixedString Bind_MeshViewer_SelectAll = "Select/Deselect All";
+        public static readonly FixedString Bind_MeshViewer_VertexSelection = "Vertex Selection";
+        public static readonly FixedString Bind_MeshViewer_EdgeSelection = "Edge Selection";
+        public static readonly FixedString Bind_MeshViewer_FaceSelection = "Face Selection";
         public static readonly FixedString Key_MeshViewer_CameraTranslate = "Right Click + WASD";
         public static readonly FixedString Key_MeshViewer_CameraRotate = "Right Click + WASD";
         public static readonly FixedString Key_MeshViewer_CameraZoom = "Mouse Scroll Wheel";
