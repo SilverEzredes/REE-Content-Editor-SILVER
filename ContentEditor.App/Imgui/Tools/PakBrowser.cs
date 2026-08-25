@@ -88,7 +88,12 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
         public int totalCount;
     }
 
-    private readonly Dictionary<(string, int, ImGuiSortDirection), string[]> cachedResults = new();
+    private readonly Dictionary<(string, int, ImGuiSortDirection, int), string[]> cachedResults = new();
+    private readonly HashSet<KnownFileFormats> _activeFileTypeFilters = new();
+    private int fileTypeFilterIDX = 0;
+    private string fileTypeFilterSearch = string.Empty;
+    private static readonly (KnownFileFormats Format, string Ext)[] knownFileTypes = Enum.GetValues<KnownFileFormats>()
+        .Select(f => (Format: f, Ext: FileFormatExtensions.FormatToFileExtension(f))).Where(t => t.Ext != "unknown").DistinctBy(t => t.Ext).OrderBy(t => t.Ext, StringComparer.OrdinalIgnoreCase).ToArray();
 
     public unsafe void Init(UIContext context)
     {
@@ -385,21 +390,31 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
         ImGui.SameLine();
 
         _editedDir ??= CurrentDir;
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - (ImGui.CalcTextSize("Path").X + (ImGui.CalcTextSize($"{AppIcons.SI_GenericClose}").X + ImGui.GetStyle().ItemSpacing.X * 2) * 2 + ImGui.GetStyle().FramePadding.X * 2));
-        if (ImGui.InputText("Path"u8, ref _editedDir, 250)) {
-            if (_editedDir.EndsWith('/')) _editedDir = _editedDir[0..^1];
-            CurrentDir = _editedDir;
-            pagination.page = 0;
-        } else {
-            _editedDir = null;
-        }
-        if (ImGui.BeginItemTooltip()) {
-            ImGui.Text("You can use patterns for more complex matching rules");
-            ImGui.BulletText("Regex patterns: natives/stm/character/**.mdf2.*");
-            ImGui.BulletText("Include rules (path MUST contain the text): +.tex    +cha01");
-            ImGui.BulletText("Exclude rules (path MUST NOT contain the text): !.tex    !/sm00");
-            ImGui.Text("Include and exclude rules must be separated with spaces");
-            ImGui.EndTooltip();
+        bool hasFileTypeFilter = _activeFileTypeFilters.Count > 0;
+        string fileTypeFilterLabel = !hasFileTypeFilter ? $"{AppIcons.SI_Filter}" : $"{AppIcons.SI_Filter} : {_activeFileTypeFilters.Count}";
+        float fileTypeFilterW = ImGui.CalcTextSize(fileTypeFilterLabel).X + ImGui.GetStyle().FramePadding.X * 2 + ImGui.GetFontSize() + ImGui.GetStyle().ItemSpacing.X;
+
+        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ((ImGui.CalcTextSize($"{AppIcons.SI_GenericClose}").X + ImGui.GetStyle().ItemSpacing.X * 2) * 3 + ImGui.GetStyle().FramePadding.X * 2) - ImGui.GetStyle().ItemSpacing.X - fileTypeFilterW);
+        using (var _ = ImguiHelpers.Disabled(hasFileTypeFilter)) {
+            if (ImGui.InputText("##Path"u8, ref _editedDir, 250)) {
+                if (_editedDir.EndsWith('/')) _editedDir = _editedDir[0..^1];
+                CurrentDir = _editedDir;
+                pagination.page = 0;
+            } else {
+                _editedDir = null;
+            }
+            if (ImGui.BeginItemTooltip()) {
+                if (hasFileTypeFilter) {
+                    ImGui.Text("Regex search is disabled while a file filter is active");
+                } else {
+                    ImGui.Text("You can use patterns for more complex matching rules");
+                    ImGui.BulletText("Regex patterns: natives/stm/character/**.mdf2.*");
+                    ImGui.BulletText("Include rules (path MUST contain the text): +.tex    +cha01");
+                    ImGui.BulletText("Exclude rules (path MUST NOT contain the text): !.tex    !/sm00");
+                    ImGui.Text("Include and exclude rules must be separated with spaces");
+                }
+                ImGui.EndTooltip();
+            }
         }
         ImGui.SameLine();
         if (isBookmarked || _bookmarks.Defaults.IsBookmarked(Workspace.Config.Game.name, CurrentDir)) {
@@ -421,6 +436,80 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
                 PlatformUtils.ShowFolderDialog(ExtractCurrentList, AppConfig.Instance.GetGameExtractPath(Workspace.Config.Game));
             }
             ImguiHelpers.Tooltip("Extract to...");
+        }
+        ImGui.SameLine();
+        int fileTypeFilterColNum = 4;
+        float fileTypeFilterPopupW = 220f * UI.UIScale * fileTypeFilterColNum;
+        ImGui.SetNextItemWidth(fileTypeFilterW);
+        ImGui.SetNextWindowSize(new Vector2(fileTypeFilterPopupW, 0));
+        if (ImGui.BeginCombo("##FileTypeFilters"u8, fileTypeFilterLabel, ImGuiComboFlags.HeightLargest)) {
+            AppImguiHelpers.ClearableInputText("##FileTypeFilterSearch"u8, $"{AppIcons.SI_GenericMagnifyingGlass} Filter file extensions", ref fileTypeFilterSearch, 32);
+            ImGui.SameLine();
+            using (var _ = ImguiHelpers.Disabled(_activeFileTypeFilters.Count == 0)) {
+                if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_FilterClear, [Colors.IconTertiary, Colors.IconPrimary], "00")) {
+                    _activeFileTypeFilters.Clear();
+                    pagination.page = 0;
+                    fileTypeFilterIDX++;
+                }
+                ImguiHelpers.Tooltip("Clear Filters");
+            }
+            ImGui.Separator();
+
+            var colWidth = fileTypeFilterPopupW / fileTypeFilterColNum - ImGui.GetStyle().WindowPadding.X;
+            ImGui.Columns(fileTypeFilterColNum, "##FileTypeFilterColumns"u8, false);
+            for (int c = 0; c < fileTypeFilterColNum; c++) {
+                ImGui.SetColumnWidth(c, colWidth);
+            }
+
+            ImGui.PushItemFlag(ImGuiItemFlags.AutoClosePopups, false);
+            foreach (var (format, ext) in knownFileTypes) {
+                if (fileTypeFilterSearch.Length > 0 && ext.IndexOf(fileTypeFilterSearch, StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                ImGui.PushID(ext);
+                var rowStart = ImGui.GetCursorPos();
+                bool isSelected = _activeFileTypeFilters.Contains(format);
+                bool wasRowClicked = ImGui.Selectable("##filterRow", false, ImGuiSelectableFlags.None, new Vector2(colWidth, ImGui.GetFrameHeight()));
+                ImGui.SetNextItemAllowOverlap();
+
+                ImGui.SetCursorPos(rowStart);
+                bool wasChkboxClicked = ImGui.Checkbox("##filterFakeChkBox", ref isSelected);
+                ImGui.SameLine();
+                var (icon, col) = AppIcons.GetIcon(format);
+                if (icon != '\0') {
+                    ImGui.TextColored(col, $"{icon}");
+                } else {
+                    ImGui.Text($"{AppIcons.SI_Blank}");
+                }
+                ImGui.SameLine();
+                ImGui.Text("." + ext);
+
+                if (wasRowClicked || wasChkboxClicked) {
+                    bool isUpdatedActiveFilters = wasChkboxClicked ? isSelected : !_activeFileTypeFilters.Contains(format);
+                    if (isUpdatedActiveFilters) {
+                        _activeFileTypeFilters.Add(format);
+                    } else {
+                        _activeFileTypeFilters.Remove(format);
+                    }
+                    pagination.page = 0;
+                    fileTypeFilterIDX++;
+                    previewGenerator?.CancelCurrentQueue();
+                }
+
+                ImGui.PopID();
+                ImGui.NextColumn();
+            }
+            ImGui.PopItemFlag();
+            ImGui.Columns(1);
+            ImGui.EndCombo();
+        }
+        ImGui.SameLine();
+        using (var _ = ImguiHelpers.Disabled(_activeFileTypeFilters.Count == 0)) {
+            if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_FilterClear, [Colors.IconTertiary, Colors.IconPrimary], "01")) {
+                _activeFileTypeFilters.Clear();
+                pagination.page = 0;
+                fileTypeFilterIDX++;
+            }
+            ImguiHelpers.Tooltip("Clear Filters");
         }
         DrawContents();
     }
@@ -477,21 +566,29 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
 
     private void GetPageFiles(ListFileWrapper baseList, short ColumnIndex, ImGuiSortDirection SortDirection, [NotNull] ref string[]? sortedEntries)
     {
-        var cacheKey = (CurrentDir, ColumnIndex, SortDirection);
+        var cacheKey = (CurrentDir, ColumnIndex, SortDirection, fileTypeFilterIDX);
         if (!cachedResults.TryGetValue(cacheKey, out sortedEntries)) {
             string[] files;
-            if (CurrentDir.StartsWith(PakReader.UnknownFilePathPrefix.AsSpan()[..^1])) {
+            var isUnknownDir = CurrentDir.StartsWith(PakReader.UnknownFilePathPrefix.AsSpan()[..^1]);
+            var hasFileTypeFilter = _activeFileTypeFilters.Count > 0;
+
+            if (hasFileTypeFilter) {
+                var sourceDir = isUnknownDir ? reader!.UnknownFilePaths : baseList.Files;
+                files = sourceDir.Where(f => (CurrentDir.Length == 0 || f.StartsWith(CurrentDir, StringComparison.OrdinalIgnoreCase)) && _activeFileTypeFilters.Contains(PathUtils.ParseFileFormat(f).format)).ToArray();
+            } else if (isUnknownDir) {
                 files = ListFileWrapper.FilterFiles(reader!.UnknownFilePaths, CurrentDir);
             } else {
                 files = baseList.GetFiles(CurrentDir);
             }
-            if (string.IsNullOrEmpty(CurrentDir) && reader!.ContainsUnknownFiles) {
-                Array.Resize(ref files, files.Length + 1);
-                files[^1] = PakReader.UnknownFilePathPrefix;
-            } else if (files.Length == 0) {
-                if (reader!.FileExists(PakUtils.GetFilepathHash(CurrentDir))) {
-                    files = [CurrentDir];
-                    Log.Info($"Congratulations! You have found a new file path at {CurrentDir}!");
+            if (!hasFileTypeFilter) {
+                if (string.IsNullOrEmpty(CurrentDir) && reader!.ContainsUnknownFiles) {
+                    Array.Resize(ref files, files.Length + 1);
+                    files[^1] = PakReader.UnknownFilePathPrefix;
+                } else if (files.Length == 0) {
+                    if (reader!.FileExists(PakUtils.GetFilepathHash(CurrentDir))) {
+                        files = [CurrentDir];
+                        Log.Info($"Congratulations! You have found a new file path at {CurrentDir}!");
+                    }
                 }
             }
             var sorted = cacheKey.ColumnIndex switch {
