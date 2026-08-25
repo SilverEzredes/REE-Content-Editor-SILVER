@@ -94,12 +94,12 @@ public static partial class Lang
         public static readonly TextTooltip UseSymlinkPatching = new TextTooltip("Use symbolic links for patching", "Whether to allow using symbolic links for patched files when possible instead of direct file copy.\nThis can make the patching faster and reduce unnecessary disk writes and storage.\nRequires Content Editor to be launched with admin permissions on Windows.");
         public static readonly TextTooltip RemoteDataSource = new TextTooltip("Resource data source", "The source from which to check for updates and download game-specific resource cache files.\nWill use the default GitHub repository if unspecified.");
         public static readonly TextTooltip EnableGpuTexCompression = new TextTooltip("Enable GPU texture compression", "Whether to enable using the much faster GPU-based compression method.\nCurrently only available on Windows.\nCan be disabled in case of issues, so that CPU-based compression is used instead.");
-
         public static readonly TextTooltip GameConfigBasePath = new TextTooltip("Game Config Base Path", "The folder path that contains the game specific entity configurations. Will use relative path config/ by default if unspecified.");
         public static readonly TextTooltip ResourcesFilepath = new TextTooltip("Resource data storage path", "The folder to use for storing the auto-downloaded game specific resource files.");
         public static readonly TextTooltip CacheFilepath = new TextTooltip("Cache file path", "The folder to use for general file caching. Must not be empty.");
         public static readonly TextTooltip ThumbnailCacheFilepath = new TextTooltip("Thumbnail cache file path", "The folder that cached thumbnails should be stored in. Must not be empty.");
         public static readonly TextTooltip BookmarksFilepath = new TextTooltip("User data file path", "The folder in which user created bookmarks and other data should be stored. Must not be empty.");
+        public static readonly TextTooltip BookmarksDisplayMode = new TextTooltip("Show Bookmarks in a stand-alone window", "Whether to display bookmarks in a separate window instead of embedding them in the Pak Browser.");
         public static readonly TextTooltip BlenderPath = new TextTooltip("Blender Path", "The path to an installed blender executable. Will be used for interacting with .blend files.");
         public static readonly TextTooltip FontSize = new TextTooltip("UI Font Size", "The default font size for drawing text.");
         public static readonly TextTooltip MaxUnpackThreads = new TextTooltip("Max unpack threads", "The maximum number of threads to be used when unpacking.\nThe actual thread count is determined automatically by the .NET runtime.");
@@ -108,7 +108,7 @@ public static partial class Lang
         public static readonly TextTooltip MaxFPSBackground = new TextTooltip("Max FPS in background", "The maximum FPS when the editor window is not focused.");
         public static readonly TextTooltip ClockFormat = new TextTooltip("12-hour Clock", "Switch the time format from 24-hour to 12-hour clock.");
         public static readonly TextTooltip UseFullscreenAnimPlayback = new TextTooltip("Fullscreen Animation Playback Overlay", "Whether to keep the animation playback overlay in the top-right corner of the Mesh Viewer or make it fullscreen.");
-        public static readonly TextTooltip ExpandSettings = new TextTooltip("Auto-Expand Settings", "Whether the setting groups should be expanded by default.");
+        public static readonly TextTooltip ExpandSettings = new TextTooltip("Auto-expand Settings", "Whether the setting groups should be expanded by default.");
         public static readonly TextTooltip PrettyFieldLabels = new TextTooltip("Simplify field labels", "Whether to simplify field labels instead of showing the raw field names (e.g. \"Target Object\" instead of \"_TargetObject\").");
         public static readonly TextTooltip AutoCloseFiles = new TextTooltip("Auto close files", "Whether to automatically close down files after their last editor window is closed when there's no unsaved changes.\nIf disabled, files will always stay open until explicitly closed through the menu.\nExperimental. Might cause issues with some files.");
         public static readonly TextTooltip ShowQuaternionsAsEuler = new TextTooltip("Use Euler angles for quaternions", "Whether quaternions should be displayed as euler angles.");
