@@ -422,7 +422,7 @@ public class SettingsWindowHandler : IWindowHandler, IKeepEnabledWhileSaving
         ImguiKeybinding(Lang.Settings.Bind_MeshViewer_CameraRotate, config.Key_MeshViewer_PivotCameraRotate, wasdCompositeLabel: Lang.Settings.Key_MeshViewer_CameraRotate.ToString(), invertSetting: config.Key_MeshViewer_PivotCameraRotateInvert);
         ImguiKeybinding(Lang.Settings.Bind_MeshViewer_CameraZoom, config.Key_MeshViewer_PivotCameraZoom, labelOverrideKey: ImGuiKey.MouseWheelY, labelOverride: Lang.Settings.Key_MeshViewer_CameraZoom.ToString(), invertSetting: config.Key_MeshViewer_PivotCameraZoomInvert);
         ImGui.Spacing();
-        ImGui.SeparatorText(Lang.Settings.Section_Editor);
+        ImGui.SeparatorText(Lang.Settings.Section_MeshEditor);
         ImguiKeybinding(Lang.Settings.Bind_MeshViewer_VertexSelection, config.Key_MeshViewer_VertexSelection);
         ImguiKeybinding(Lang.Settings.Bind_MeshViewer_EdgeSelection, config.Key_MeshViewer_EdgeSelection);
         ImguiKeybinding(Lang.Settings.Bind_MeshViewer_FaceSelection, config.Key_MeshViewer_FaceSelection);

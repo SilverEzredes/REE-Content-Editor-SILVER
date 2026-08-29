@@ -31,7 +31,7 @@ public static partial class Lang
         public static readonly FixedString Section_OrthoCamera = "Ortho Camera";
         public static readonly FixedString Section_PivotCamera = "Pivot Camera";
         public static readonly FixedString Section_Animator = "Animator";
-        public static readonly FixedString Section_Editor = "Editor";
+        public static readonly FixedString Section_MeshEditor = "Mesh Editor";
         public static readonly FixedString Section_GroupList = "GroupList";
 
         public static readonly FixedString Group_Preferences = "Preferences";
