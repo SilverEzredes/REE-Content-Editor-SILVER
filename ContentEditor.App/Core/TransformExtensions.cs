@@ -13,12 +13,12 @@ public static class TransformExtensions
         var pt = Vector3.Transform(local.minpos, world);
         var aabb = new AABB(pt, pt)
             .Extend(Vector3.Transform(local.maxpos, world))
-            .Extend(Vector3.Transform(new Vector3(local.minpos.X, local.minpos.Y, local.maxpos.Y), world))
-            .Extend(Vector3.Transform(new Vector3(local.minpos.X, local.maxpos.Y, local.minpos.Y), world))
-            .Extend(Vector3.Transform(new Vector3(local.minpos.X, local.maxpos.Y, local.maxpos.Y), world))
-            .Extend(Vector3.Transform(new Vector3(local.maxpos.X, local.minpos.Y, local.maxpos.Y), world))
-            .Extend(Vector3.Transform(new Vector3(local.maxpos.X, local.maxpos.Y, local.minpos.Y), world))
-            .Extend(Vector3.Transform(new Vector3(local.maxpos.X, local.maxpos.Y, local.maxpos.Y), world));
+            .Extend(Vector3.Transform(new Vector3(local.minpos.X, local.minpos.Y, local.maxpos.Z), world))
+            .Extend(Vector3.Transform(new Vector3(local.minpos.X, local.maxpos.Y, local.minpos.Z), world))
+            .Extend(Vector3.Transform(new Vector3(local.minpos.X, local.maxpos.Y, local.maxpos.Z), world))
+            .Extend(Vector3.Transform(new Vector3(local.maxpos.X, local.minpos.Y, local.maxpos.Z), world))
+            .Extend(Vector3.Transform(new Vector3(local.maxpos.X, local.maxpos.Y, local.minpos.Z), world))
+            .Extend(Vector3.Transform(new Vector3(local.maxpos.X, local.maxpos.Y, local.maxpos.Z), world));
 
         return aabb;
     }
