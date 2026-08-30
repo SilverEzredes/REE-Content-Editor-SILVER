@@ -48,25 +48,13 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
     private ListFileWrapper? currentList;
     private ListFileWrapper? activeListFile;
     private BookmarkHolder _bookmarks = new BookmarkHolder(contentWorkspace);
-    private List<string> _activeTagFilter = new();
-    private string bookmarkSearch = string.Empty;
-    private bool isBookmarkSearchMatchCase = false;
-    private string customBookmarkComment = "";
-    private string? editingCustomBookmark = null;
+    private BookmarksPanel? _bookmarksPanel;
+    private BookmarksPanel BookmarksPanel => _bookmarksPanel ??= new BookmarksPanel(contentWorkspace, _bookmarks, path => CurrentDir = path);
+    private bool isShowBookmarks = false;
     private bool jumpToPageTop = false;
-    private enum FilterMode
-    {
-        AnyMatch,
-        AllMatch,
-        ExactMatch
-    }
-    private FilterMode _filterMode = FilterMode.AnyMatch;
-
     private PakReader? unpacker;
     private int unpackExpectedFiles;
-
     private bool hasInvalidatedPaks;
-    private bool isShowBookmarks = false;
     private int itemsPerPage = 1000;
 
     private ImGuiSortDirection gridSortDir = ImGuiSortDirection.Ascending;
@@ -88,7 +76,13 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
         public int totalCount;
     }
 
-    private readonly Dictionary<(string, int, ImGuiSortDirection), string[]> cachedResults = new();
+    private readonly Dictionary<(string, int, ImGuiSortDirection, int), string[]> cachedResults = new();
+    private readonly HashSet<KnownFileFormats> _activeFileTypeFilters = new();
+    private bool isHideUnsupportedFormats = true;
+    private int fileTypeFilterIDX = 0;
+    private string fileTypeFilterSearch = string.Empty;
+    private static readonly (KnownFileFormats Format, string Ext)[] knownFileTypes = Enum.GetValues<KnownFileFormats>()
+        .Select(f => (Format: f, Ext: FileFormatExtensions.FormatToFileExtension(f))).Where(t => t.Ext != "unknown").DistinctBy(t => t.Ext).OrderBy(t => t.Ext, StringComparer.OrdinalIgnoreCase).ToArray();
 
     public unsafe void Init(UIContext context)
     {
@@ -255,10 +249,13 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
         bool isHideCustoms = _bookmarks.User.IsHideBookmarks;
         bool isBookmarked = _bookmarks.User.IsBookmarked(Workspace.Config.Game.name, CurrentDir);
         ImguiHelpers.AlignElementRight((ImGui.CalcTextSize($"{AppIcons.SI_ViewGridSmall}").X + ImGui.GetStyle().FramePadding.X * 2) * 2 + ImGui.GetStyle().ItemSpacing.X);
-        ImguiHelpers.ToggleButton($"{AppIcons.SI_Bookmarks}", ref isShowBookmarks, Colors.IconActive);
+        bool isBookmarksActive = AppConfig.Instance.UseBookmarkWindow ? EditorWindow.CurrentWindow?.HasSubwindow<BookmarksWindow>(out _) == true : isShowBookmarks;
+        if (ImguiHelpers.ToggleButton($"{AppIcons.SI_Bookmarks}", ref isBookmarksActive, Colors.IconActive)) {
+            ToggleBookmarks();
+        }
         ImguiHelpers.Tooltip("Bookmarks"u8);
         if (ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows) && AppConfig.Instance.Key_PakBrowser_OpenBookmarks.Get().IsPressed()) {
-            isShowBookmarks = !isShowBookmarks;
+            ToggleBookmarks();
         }
         ImGui.SameLine();
         if (ImGui.Button(DisplayMode == FileDisplayMode.Grid ? $"{AppIcons.SI_ViewGridSmall}" : $"{AppIcons.List}")) {
@@ -268,99 +265,8 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
         ImguiHelpers.Tooltip(DisplayMode == FileDisplayMode.Grid ? "Grid View"u8 : "List View"u8);
         ImGui.Spacing();
         ImGui.Separator();
-        if (isShowBookmarks) {
-            ImguiHelpers.ToggleButtonMultiColor(AppIcons.SIC_BookmarkHide, ref isHideDefaults, [Colors.IconSecondary, Colors.IconPrimary, Colors.IconPrimary], Colors.IconActive);
-            ImguiHelpers.Tooltip("Hide Default Bookmarks"u8);
-            _bookmarks.Defaults.IsHideBookmarks = isHideDefaults;
-            using (var _ = ImguiHelpers.Disabled(_bookmarks.User.GetBookmarks(Workspace.Config.Game.name).Count == 0)) {
-                ImGui.SameLine();
-                ImguiHelpers.ToggleButtonMultiColor(AppIcons.SIC_BookmarkCustomHide, ref isHideCustoms, [Colors.IconSecondary, Colors.IconPrimary, Colors.IconPrimary], Colors.IconActive);
-                ImguiHelpers.Tooltip("Hide Custom Bookmarks"u8);
-                _bookmarks.User.IsHideBookmarks = isHideCustoms;
-                ImGui.SameLine();
-                if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_BookmarkCustomClear, [Colors.IconPrimary, Colors.IconTertiary])) {
-                    ImGui.OpenPopup("Confirm Action"u8);
-                }
-                ImguiHelpers.Tooltip("Clear Custom Bookmarks");
-                AppImguiHelpers.ShowActionModal(Lang.General.ConfirmTitle, $"{AppIcons.SI_GenericDelete2}", Colors.IconTertiary,
-                    Lang.PakBrowser.ConfirmDeleteBookmarks.FormatRef(Lang.TranslateGame(Workspace.Config.Game.name)),
-                    () => {
-                        _bookmarks.User.ClearBookmarks(Workspace.Config.Game.name);
-                        Logger.Info($"Cleared custom bookmarks for {Workspace.Config.Game.name}");
-                    }
-                );
-            }
-            ImGui.SameLine();
-            string filterModeName = _filterMode switch {
-                FilterMode.AnyMatch => "Any",
-                FilterMode.AllMatch => "All",
-                FilterMode.ExactMatch => "Exact",
-                _ => "?"
-            };
-            string filterLabelDisplayText = _activeTagFilter.Count == 0 ? $"{AppIcons.SI_Filter}" : $"{AppIcons.SI_Filter} : " + _activeTagFilter.Count.ToString();
-            Vector2 filterLabelSize = ImGui.CalcTextSize(filterLabelDisplayText);
-            float filterComboWidth = filterLabelSize.X + ImGui.GetStyle().FramePadding.X * 2 + ImGui.GetStyle().ItemSpacing.X + ImGui.GetFontSize();
-            float searchBarWidth = 260f;
-            ImguiHelpers.AlignElementRight(((ImGui.CalcTextSize($"{AppIcons.SI_GenericClose}").X + ImGui.GetStyle().FramePadding.X * 2) + ImGui.GetStyle().ItemSpacing.X) * 2 + filterComboWidth + searchBarWidth + ImGui.GetStyle().ItemSpacing.X);
-            ImguiHelpers.ToggleButton($"{AppIcons.SI_GenericMatchCase}", ref isBookmarkSearchMatchCase, Colors.IconActive);
-            ImguiHelpers.Tooltip("Match Case");
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(searchBarWidth);
-            AppImguiHelpers.ClearableInputText("##BookmarkSearch"u8, $"{AppIcons.SI_GenericMagnifyingGlass} Search Comments", ref bookmarkSearch, 64);
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(filterComboWidth);
-            if (ImGui.BeginCombo("##TagFilterCombo"u8, filterLabelDisplayText, ImGuiComboFlags.HeightLargest)) {
-                ImGui.TextDisabled("Filter Mode:");
-                ImGui.SameLine();
-
-                if (ImGui.SmallButton(filterModeName)) {
-                    _filterMode = _filterMode switch {
-                        FilterMode.AnyMatch => FilterMode.AllMatch,
-                        FilterMode.AllMatch => FilterMode.ExactMatch,
-                        FilterMode.ExactMatch => FilterMode.AnyMatch,
-                        _ => FilterMode.AnyMatch
-                    };
-                }
-
-                if (ImGui.BeginItemTooltip()) {
-                    ImGui.SeparatorText("Filter Modes");
-                    ImGui.BulletText("Any: Keep entries with at least one matching tag");
-                    ImGui.BulletText("All: Keep entries containing all active tags");
-                    ImGui.BulletText("Exact: Keep entries with tags exactly matching the active filters");
-                    ImGui.EndTooltip();
-                }
-                ImGui.Separator();
-
-                foreach (var tag in BookmarkManager.TagInfoMap.Keys) {
-                    bool isSelected = _activeTagFilter.Contains(tag);
-                    if (ImGui.Checkbox(tag, ref isSelected)) {
-                        if (isSelected) {
-                            _activeTagFilter.Add(tag);
-                        } else {
-                            _activeTagFilter.Remove(tag);
-                        }
-                    }
-                }
-                ImGui.EndCombo();
-            }
-            ImguiHelpers.Tooltip("Filters");
-            ImGui.SameLine();
-            using (var _ = ImguiHelpers.Disabled(_activeTagFilter.Count == 0)) {
-                if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_FilterClear, [Colors.IconTertiary, Colors.IconPrimary])) {
-                    _activeTagFilter.Clear();
-                }
-                ImguiHelpers.Tooltip("Clear Filters");
-            }
-            if (_bookmarks.Defaults.GetBookmarks(Workspace.Config.Game.name).Count > 0 && !_bookmarks.Defaults.IsHideBookmarks) {
-                ShowBookmarksTable("Default", 3, _bookmarks.Defaults, _activeTagFilter, bookmarkSearch.Trim());
-            }
-            if (_bookmarks.User.GetBookmarks(Workspace.Config.Game.name).Count > 0 && !_bookmarks.User.IsHideBookmarks) {
-                ShowBookmarksTable("Custom", 4, _bookmarks.User, _activeTagFilter, bookmarkSearch.Trim());
-            } else {
-                if (!_bookmarks.User.IsHideBookmarks) {
-                    ImGui.TextDisabled("No Custom Bookmarks yet...");
-                }
-            }
+        if (isShowBookmarks && !AppConfig.Instance.UseBookmarkWindow) {
+            BookmarksPanel.ShowBookmarks();
             ImGui.Separator();
             ImGui.Spacing();
         }
@@ -385,21 +291,31 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
         ImGui.SameLine();
 
         _editedDir ??= CurrentDir;
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - (ImGui.CalcTextSize("Path").X + (ImGui.CalcTextSize($"{AppIcons.SI_GenericClose}").X + ImGui.GetStyle().ItemSpacing.X * 2) * 2 + ImGui.GetStyle().FramePadding.X * 2));
-        if (ImGui.InputText("Path"u8, ref _editedDir, 250)) {
-            if (_editedDir.EndsWith('/')) _editedDir = _editedDir[0..^1];
-            CurrentDir = _editedDir;
-            pagination.page = 0;
-        } else {
-            _editedDir = null;
-        }
-        if (ImGui.BeginItemTooltip()) {
-            ImGui.Text("You can use patterns for more complex matching rules");
-            ImGui.BulletText("Regex patterns: natives/stm/character/**.mdf2.*");
-            ImGui.BulletText("Include rules (path MUST contain the text): +.tex    +cha01");
-            ImGui.BulletText("Exclude rules (path MUST NOT contain the text): !.tex    !/sm00");
-            ImGui.Text("Include and exclude rules must be separated with spaces");
-            ImGui.EndTooltip();
+        bool hasFileTypeFilter = _activeFileTypeFilters.Count > 0;
+        string fileTypeFilterLabel = !hasFileTypeFilter ? $"{AppIcons.SI_Filter}" : $"{AppIcons.SI_Filter} : {_activeFileTypeFilters.Count}";
+        float fileTypeFilterW = ImGui.CalcTextSize(fileTypeFilterLabel).X + ImGui.GetStyle().FramePadding.X * 2 + ImGui.GetFontSize() + ImGui.GetStyle().ItemSpacing.X;
+
+        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ((ImGui.CalcTextSize($"{AppIcons.SI_GenericClose}").X + ImGui.GetStyle().ItemSpacing.X * 2) * 3 + ImGui.GetStyle().FramePadding.X * 2) - ImGui.GetStyle().ItemSpacing.X - fileTypeFilterW);
+        using (var _ = ImguiHelpers.Disabled(hasFileTypeFilter)) {
+            if (ImGui.InputText("##Path"u8, ref _editedDir, 250)) {
+                if (_editedDir.EndsWith('/')) _editedDir = _editedDir[0..^1];
+                CurrentDir = _editedDir;
+                pagination.page = 0;
+            } else {
+                _editedDir = null;
+            }
+            if (ImGui.BeginItemTooltip()) {
+                if (hasFileTypeFilter) {
+                    ImGui.Text("Regex search is disabled while a file filter is active");
+                } else {
+                    ImGui.Text("You can use patterns for more complex matching rules");
+                    ImGui.BulletText("Regex patterns: natives/stm/character/**.mdf2.*");
+                    ImGui.BulletText("Include rules (path MUST contain the text): +.tex    +cha01");
+                    ImGui.BulletText("Exclude rules (path MUST NOT contain the text): !.tex    !/sm00");
+                    ImGui.Text("Include and exclude rules must be separated with spaces");
+                }
+                ImGui.EndTooltip();
+            }
         }
         ImGui.SameLine();
         if (isBookmarked || _bookmarks.Defaults.IsBookmarked(Workspace.Config.Game.name, CurrentDir)) {
@@ -420,7 +336,113 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
             if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_PakExtractTo, [Colors.IconPrimary, Colors.IconPrimary, Colors.IconSecondary])) {
                 PlatformUtils.ShowFolderDialog(ExtractCurrentList, AppConfig.Instance.GetGameExtractPath(Workspace.Config.Game));
             }
-            ImguiHelpers.Tooltip("Extract to...");
+            ImguiHelpers.Tooltip(Lang.PakBrowser.ExtractTo);
+        }
+        ImGui.SameLine();
+        int fileTypeFilterColNum = 4;
+        float colDesiredWidth = isHideUnsupportedFormats ? 180 * UI.UIScale : 195 * UI.UIScale;
+
+        var mainViewport = ImGui.GetMainViewport();
+        float viewportUsableW = mainViewport.WorkSize.X * 0.9f;
+        int computedCols = (int)(viewportUsableW / colDesiredWidth);
+        fileTypeFilterColNum = Math.Clamp(computedCols, 1, 4);
+        float fileTypeFilterPopupW = colDesiredWidth * fileTypeFilterColNum;
+
+        Vector2 buttonPos = ImGui.GetCursorScreenPos();
+        float desiredButtonW = buttonPos.X;
+        float maxViewportW = mainViewport.WorkPos.X + mainViewport.WorkSize.X - fileTypeFilterPopupW;
+        float clampedViewportW = Math.Clamp(desiredButtonW, mainViewport.WorkPos.X, Math.Max(mainViewport.WorkPos.X, maxViewportW));
+        
+        ImGui.SetNextItemWidth(fileTypeFilterW);
+        ImGui.SetNextWindowPos(new Vector2(clampedViewportW, buttonPos.Y + ImGui.GetFrameHeightWithSpacing()));
+        ImGui.SetNextWindowSize(new Vector2(fileTypeFilterPopupW, 0));
+        if (ImGui.BeginCombo("##FileTypeFilters"u8, fileTypeFilterLabel, ImGuiComboFlags.HeightLargest)) {
+            AppImguiHelpers.ClearableInputText("##FileTypeFilterSearch"u8, $"{AppIcons.SI_GenericMagnifyingGlass} Filter file extensions", ref fileTypeFilterSearch, 32);
+            ImGui.SameLine();
+            using (var _ = ImguiHelpers.Disabled(_activeFileTypeFilters.Count == 0)) {
+                if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_FilterClear, [Colors.IconTertiary, Colors.IconPrimary], "00")) {
+                    _activeFileTypeFilters.Clear();
+                    pagination.page = 0;
+                    fileTypeFilterIDX++;
+                }
+                ImguiHelpers.Tooltip(Lang.PakBrowser.Tooltip_ClearFilters);
+            }
+            ImguiHelpers.InlineVerticalSeparator();
+            if (ImguiHelpers.ToggleButtonMultiColor(AppIcons.SIC_FileUnsupportedFormat, ref isHideUnsupportedFormats, [Colors.IconPrimary, Colors.IconPrimary, Colors.IconTertiary], Colors.IconActive)) {
+                fileTypeFilterIDX++;
+            }
+            ImguiHelpers.Tooltip(Lang.PakBrowser.Tooltip_HideUnsupported);
+            ImGui.Separator();
+
+            var colW = fileTypeFilterPopupW / fileTypeFilterColNum;
+            if (ImGui.BeginTable("##FileTypeFilterTable", fileTypeFilterColNum, ImGuiTableFlags.SizingFixedFit)) {
+                for (int c = 0; c < fileTypeFilterColNum; c++) {
+                    ImGui.TableSetupColumn($"##col{c}", ImGuiTableColumnFlags.WidthFixed, colW);
+                }
+                ImGui.PushItemFlag(ImGuiItemFlags.AutoClosePopups, false);
+                int colIDX = 0;
+                foreach (var (format, ext) in knownFileTypes) {
+                    string fileEXT = "." + ext;
+                    if (fileTypeFilterSearch.Length > 0 && ext.IndexOf(fileTypeFilterSearch, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    if (isHideUnsupportedFormats && !contentWorkspace.ResourceManager.CanLoadFile(fileEXT)) continue;
+                    if (colIDX % fileTypeFilterColNum == 0) {
+                        ImGui.TableNextRow();
+                    }
+                    ImGui.TableSetColumnIndex(colIDX % fileTypeFilterColNum);
+                    ImGui.AlignTextToFramePadding();
+
+                    ImGui.PushID(ext);
+                    bool isSelected = _activeFileTypeFilters.Contains(format);
+                    float cellW = ImGui.GetContentRegionAvail().X;
+                    bool wasRowClicked = ImGui.Selectable("##filterRow", false, ImGuiSelectableFlags.None, new Vector2(cellW, ImGui.GetFrameHeight()));
+
+                    Vector2 selMin = ImGui.GetItemRectMin();
+                    Vector2 selMax = ImGui.GetItemRectMax();
+                    float selH = selMax.Y - selMin.Y;
+                    float chkH = ImGui.GetFrameHeight();
+                    float yOffset = (selH - chkH) * 0.5f;
+                    float xOffset = 4f * UI.UIScale;
+
+                    ImGui.SetNextItemAllowOverlap();
+                    ImGui.SetCursorScreenPos(new Vector2(selMin.X + xOffset, selMin.Y + yOffset));
+                    bool wasChkboxClicked = ImGui.Checkbox("##filterFakeChkBox", ref isSelected);
+                    ImGui.SameLine();
+                    var (icon, col) = AppIcons.GetIcon(format);
+                    if (icon != '\0') {
+                        ImGui.TextColored(col, $"{icon}");
+                    } else {
+                        ImGui.Text($"{AppIcons.SI_Blank}");
+                    }
+                    ImGui.SameLine();
+                    ImGui.Text(fileEXT);
+
+                    if (wasRowClicked || wasChkboxClicked) {
+                        bool isUpdatedActiveFilters = wasChkboxClicked ? isSelected : !_activeFileTypeFilters.Contains(format);
+                        if (isUpdatedActiveFilters) {
+                            _activeFileTypeFilters.Add(format);
+                        } else {
+                            _activeFileTypeFilters.Remove(format);
+                        }
+                        pagination.page = 0;
+                        fileTypeFilterIDX++;
+                        previewGenerator?.CancelCurrentQueue();
+                    }
+                    ImGui.PopID();
+                    colIDX++;
+                }
+                ImGui.PopItemFlag();
+                ImGui.EndTable();
+            }
+            ImGui.EndCombo();
+        }
+        ImGui.SameLine();
+        using (var _ = ImguiHelpers.Disabled(_activeFileTypeFilters.Count == 0)) {
+            if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_FilterClear, [Colors.IconTertiary, Colors.IconPrimary], "01")) {
+                _activeFileTypeFilters.Clear();
+                pagination.page = 0;
+                fileTypeFilterIDX++;
+            }
+            ImguiHelpers.Tooltip(Lang.PakBrowser.Tooltip_ClearFilters);
         }
         DrawContents();
     }
@@ -477,21 +499,29 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
 
     private void GetPageFiles(ListFileWrapper baseList, short ColumnIndex, ImGuiSortDirection SortDirection, [NotNull] ref string[]? sortedEntries)
     {
-        var cacheKey = (CurrentDir, ColumnIndex, SortDirection);
+        var cacheKey = (CurrentDir, ColumnIndex, SortDirection, fileTypeFilterIDX);
         if (!cachedResults.TryGetValue(cacheKey, out sortedEntries)) {
             string[] files;
-            if (CurrentDir.StartsWith(PakReader.UnknownFilePathPrefix.AsSpan()[..^1])) {
+            var isUnknownDir = CurrentDir.StartsWith(PakReader.UnknownFilePathPrefix.AsSpan()[..^1]);
+            var hasFileTypeFilter = _activeFileTypeFilters.Count > 0;
+
+            if (hasFileTypeFilter) {
+                var sourceDir = isUnknownDir ? reader!.UnknownFilePaths : baseList.Files;
+                files = sourceDir.Where(f => (CurrentDir.Length == 0 || f.StartsWith(CurrentDir, StringComparison.OrdinalIgnoreCase)) && _activeFileTypeFilters.Contains(PathUtils.ParseFileFormat(f).format)).ToArray();
+            } else if (isUnknownDir) {
                 files = ListFileWrapper.FilterFiles(reader!.UnknownFilePaths, CurrentDir);
             } else {
                 files = baseList.GetFiles(CurrentDir);
             }
-            if (string.IsNullOrEmpty(CurrentDir) && reader!.ContainsUnknownFiles) {
-                Array.Resize(ref files, files.Length + 1);
-                files[^1] = PakReader.UnknownFilePathPrefix;
-            } else if (files.Length == 0) {
-                if (reader!.FileExists(PakUtils.GetFilepathHash(CurrentDir))) {
-                    files = [CurrentDir];
-                    Log.Info($"Congratulations! You have found a new file path at {CurrentDir}!");
+            if (!hasFileTypeFilter) {
+                if (string.IsNullOrEmpty(CurrentDir) && reader!.ContainsUnknownFiles) {
+                    Array.Resize(ref files, files.Length + 1);
+                    files[^1] = PakReader.UnknownFilePathPrefix;
+                } else if (files.Length == 0) {
+                    if (reader!.FileExists(PakUtils.GetFilepathHash(CurrentDir))) {
+                        files = [CurrentDir];
+                        Log.Info($"Congratulations! You have found a new file path at {CurrentDir}!");
+                    }
                 }
             }
             var sorted = cacheKey.ColumnIndex switch {
@@ -860,174 +890,6 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
             ImGui.EndPopup();
         }
     }
-
-    private void ShowBookmarksTable(string label, int columnNum, BookmarkManager manager, List<string> activeTagFilter, string searchText)
-    {
-        var bookmarks = manager.GetBookmarks(Workspace.Config.Game.name);
-        if (bookmarks.Count == 0) {
-            return;
-        }
-
-        var useCompactFilePaths = AppConfig.Instance.UsePakCompactFilePaths.Get();
-        var filteredBookmarks = FilterBookmarks(bookmarks.ToList(), activeTagFilter, searchText, _filterMode);
-
-        if (filteredBookmarks.Count == 0) {
-            ImGui.SeparatorText(label + " [No Matches Found]");
-            return;
-        }
-
-        float rowHeight = ImGui.GetTextLineHeightWithSpacing();
-        float currDisplayHeight = filteredBookmarks.Count <= 5 ? 0 : rowHeight * 10;
-        var bookmarkTableFlags = ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.BordersOuterV | ImGuiTableFlags.RowBg;
-        if (filteredBookmarks.Count >= 5) {
-            bookmarkTableFlags |= ImGuiTableFlags.ScrollY;
-        }
-        ImGui.SeparatorText(label);
-        if (ImGui.BeginChild($"{label}_Scroll", new Vector2(0, currDisplayHeight), ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY)) {
-            if (ImGui.BeginTable($"{label}Table", columnNum, bookmarkTableFlags)) {
-                ImGui.TableSetupColumn("Path"u8, ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Tags"u8, ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Comment"u8, ImGuiTableColumnFlags.WidthStretch);
-                if (manager == _bookmarks.User) {
-                    ImGui.TableSetupColumn("Order"u8, ImGuiTableColumnFlags.WidthFixed, ((ImGui.GetFrameHeight() * 2f) + ImGui.GetStyle().ItemSpacing.X * 3f));
-                }
-                ImGui.TableHeadersRow();
-
-                foreach (var bm in filteredBookmarks) {
-                    string displayPath = useCompactFilePaths ? LessCompactFilePath(bm.Path) : bm.Path;
-                    ImGui.TableNextRow();
-                    ImGui.TableSetColumnIndex(0);
-                    if (ImGui.Selectable(displayPath, false)) {
-                        CurrentDir = bm.Path;
-                    }
-
-                    if (manager == _bookmarks.User && ImGui.BeginPopupContextItem(bm.Path)) {
-                        ShowBookmarksContextMenu(manager, bm);
-                        ImGui.EndPopup();
-                    }
-
-                    ImGui.TableSetColumnIndex(1);
-                    foreach (var tag in bm.Tags) {
-                        ImGui.PushID($"{bm.Path}_{tag}");
-                        if (BookmarkManager.TagInfoMap.TryGetValue(tag, out var info)) {
-                            var cols = info.Colors();
-                            ImGui.PushStyleColor(ImGuiCol.Button, cols[0]);
-                            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, cols[1]);
-                            ImGui.PushStyleColor(ImGuiCol.ButtonActive, cols[2]);
-                            ImGui.PushStyleColor(ImGuiCol.Text, Vector4.One);
-                            if (ImGui.Button(info.Icon)) {
-                                if (!activeTagFilter.Remove(tag)) {
-                                    activeTagFilter.Add(tag);
-                                }
-                            }
-                            ImguiHelpers.Tooltip(tag);
-                            ImGui.PopStyleColor(4);
-                        }
-                        ImGui.SameLine();
-                        ImGui.PopID();
-                    }
-
-                    ImGui.TableSetColumnIndex(2);
-                    if (!string.IsNullOrEmpty(bm.Comment)) {
-                        (manager == _bookmarks.Defaults ? (Action<string>)ImGui.TextDisabled : ImGui.Text)(bm.Comment);
-                    }
-
-                    if (manager == _bookmarks.User) {
-                        ImGui.TableSetColumnIndex(3);
-                        int idx = bookmarks.IndexOf(bm);
-                        int uniqueId = bm.GetHashCode();
-                        int? moveFrom = null, moveTo = null;
-                        using (var _ = ImguiHelpers.Disabled(!string.IsNullOrEmpty(searchText))) {
-                            if (ImGui.ArrowButton($"##up_{uniqueId}", ImGuiDir.Up) && idx > 0) {
-                                moveFrom = idx;
-                                moveTo = idx - 1;
-                            }
-                            ImGui.SameLine();
-                            if (ImGui.ArrowButton($"##down_{uniqueId}", ImGuiDir.Down) && idx < bookmarks.Count - 1) {
-                                moveFrom = idx;
-                                moveTo = idx + 1;
-                            }
-                        }
-
-                        if (moveFrom.HasValue && moveTo.HasValue) {
-                            (bookmarks[moveFrom.Value], bookmarks[moveTo.Value]) = (bookmarks[moveTo.Value], bookmarks[moveFrom.Value]);
-                            manager.SaveBookmarks();
-                        }
-                    }
-                }
-                ImGui.EndTable();
-            }
-        }
-        ImGui.EndChild();
-    }
-    private List<BookmarkManager.BookmarkEntry> FilterBookmarks(List<BookmarkManager.BookmarkEntry> bookmarks, List<string> activeTagFilter, string searchText, FilterMode filterMode)
-    {
-        return bookmarks.Where(bm => {
-            bool tagMatch = true;
-            if (activeTagFilter.Count > 0) {
-                switch (filterMode) {
-                    case FilterMode.AnyMatch:
-                        tagMatch = activeTagFilter.Any(tag => bm.Tags.Contains(tag));
-                        break;
-                    case FilterMode.AllMatch:
-                        tagMatch = activeTagFilter.All(tag => bm.Tags.Contains(tag));
-                        break;
-                    case FilterMode.ExactMatch:
-                        tagMatch = bm.Tags.Count == activeTagFilter.Count && activeTagFilter.All(tag => bm.Tags.Contains(tag));
-                        break;
-                }
-            }
-
-            bool commentMatch = string.IsNullOrEmpty(searchText) || (bm.Comment?.Contains(searchText, isBookmarkSearchMatchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase) ?? false);
-            return tagMatch && commentMatch;
-        }).ToList();
-    }
-
-    private void ShowBookmarksContextMenu(BookmarkManager manager, BookmarkManager.BookmarkEntry bm)
-    {
-
-        if (ImguiHelpers.ContextMenuItem("##CopyPath", AppIcons.SI_FileCopyPath, "Copy Path", Colors.IconPrimary)) {
-            EditorWindow.CurrentWindow?.CopyToClipboard(bm.Path);
-        }
-        if (ImguiHelpers.ContextMenuItem("##JumptoLocation", AppIcons.SIC_FileJumpTo, "Jump to file Location", [Colors.IconPrimary, Colors.IconPrimary, Colors.IconSecondary])) {
-            CurrentDir = bm.Path;
-        }
-        if (ImguiHelpers.ContextMenuItem("##RemoveBookmarks", AppIcons.SIC_BookmarkRemove, "Remove from Bookmarks", [Colors.IconPrimary, Colors.IconTertiary])) {
-            manager.RemoveBookmark(Workspace.Config.Game.name, bm.Path);
-        }
-        if (ImGui.BeginMenu($"{AppIcons.SI_GenericTag} | Tags")) {
-            ImGui.PushItemFlag(ImGuiItemFlags.AutoClosePopups, false);
-            foreach (var tag in BookmarkManager.TagInfoMap.Keys) {
-                bool hasTag = bm.Tags.Contains(tag);
-                if (ImGui.MenuItem(tag, "", hasTag)) {
-                    if (hasTag) {
-                        bm.Tags.Remove(tag);
-                        manager.SaveBookmarks();
-                    } else {
-                        bm.Tags.Add(tag);
-                        manager.SaveBookmarks();
-                    }
-                }
-            }
-            ImGui.Separator();
-            if (ImGui.MenuItem(Lang.Buttons.Clear_Tags)) {
-                bm.Tags.Clear();
-                manager.SaveBookmarks();
-            }
-            ImGui.PopItemFlag();
-            ImGui.EndMenu();
-        }
-        if (editingCustomBookmark != bm.Path) {
-            editingCustomBookmark = bm.Path;
-            customBookmarkComment = bm.Comment;
-        }
-        if (ImGui.InputTextWithHint("Edit Comment"u8, "Press Enter to save"u8, ref customBookmarkComment, 64, ImGuiInputTextFlags.EnterReturnsTrue)) {
-            bm.Comment = customBookmarkComment;
-            manager.SaveBookmarks();
-            editingCustomBookmark = null;
-        }
-    }
-
     private bool IsFileOrFolderInBundle(string path)
     {
         if (contentWorkspace.CurrentBundle?.HasResources != true) return false;
@@ -1059,14 +921,17 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
 
         return parts[^1];
     }
-
-    private static string LessCompactFilePath(string path)
+    private void ToggleBookmarks()
     {
-        var parts = path.NormalizeFilepath().Split('/');
-        if (parts.Length <= 2) return path;
-
-        var remainingParts = parts[2..];
-        return string.Join("/", remainingParts);
+        if (AppConfig.Instance.UseBookmarkWindow) {
+            if (EditorWindow.CurrentWindow?.HasSubwindow<BookmarksWindow>(out var data) == true) {
+                EditorWindow.CurrentWindow.CloseSubwindow(data!);
+            } else {
+                EditorWindow.CurrentWindow?.AddUniqueSubwindow(new BookmarksWindow(BookmarksPanel));
+            }
+        } else {
+            isShowBookmarks = !isShowBookmarks;
+        }
     }
     public bool RequestClose()
     {

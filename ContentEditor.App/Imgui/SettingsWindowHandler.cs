@@ -316,6 +316,7 @@ public class SettingsWindowHandler : IWindowHandler, IKeepEnabledWhileSaving
         }
         ShowSetting(config.UseFullscreenAnimPlayback, Lang.Settings.UseFullscreenAnimPlayback);
         ShowSetting(config.ExpandSettings, Lang.Settings.ExpandSettings);
+        ShowSetting(config.UseBookmarkWindow, Lang.Settings.BookmarksDisplayMode);
 
         ImGui.SeparatorText(Lang.Settings.Section_Fields);
         ShowSetting(config.PrettyFieldLabels, Lang.Settings.PrettyFieldLabels);

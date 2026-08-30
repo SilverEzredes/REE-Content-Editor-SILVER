@@ -53,6 +53,7 @@ public class AppConfig : Singleton<AppConfig>
         public const string MacroDisplayMode = "macro_display_mode";
         public const string ThumbnailCacheFilepath = "thumbnail_cache_path";
         public const string CacheFilepath = "cache_path";
+        public const string UseBookmarkWindow = "use_bookmark_window";
         public const string BookmarksFilepath = "bookmarks_path";
         public const string ResourcesFilepath = "resources_path";
         public const string ExternalTextEditor = "external_text_editor";
@@ -354,6 +355,7 @@ public class AppConfig : Singleton<AppConfig>
     public readonly SettingWrapper<bool> AutoCloseFiles = new SettingWrapper<bool>(Keys.AutoCloseFiles, _lock, true);
     public readonly SettingWrapper<bool> UseMDFGroupedParams = new SettingWrapper<bool>(Keys.UseMDFGroupedParams, _lock, false);
     public readonly SettingWrapper<bool> UseMDFCompactView = new SettingWrapper<bool>(Keys.UseMDFCompactView, _lock, false);
+    public readonly SettingWrapper<bool> UseBookmarkWindow = new SettingWrapper<bool>(Keys.UseBookmarkWindow, _lock, false);
     public readonly SettingWrapper<bool> DisableScriptSafetyWarning = new SettingWrapper<bool>(Keys.DisableScriptSafetyWarning, _lock, false);
     public readonly SettingWrapper<bool> UseSubPakForLooseTextures = new SettingWrapper<bool>(Keys.UseSubPakForLooseTextures, _lock, false);
     public readonly SettingWrapper<bool> UseSymlinkPatching = new SettingWrapper<bool>(Keys.UseSymlinkPatching, _lock, false);
@@ -577,6 +579,7 @@ public class AppConfig : Singleton<AppConfig>
             (Keys.AutoCloseFiles, instance.AutoCloseFiles.value.ToString(), null),
             (Keys.UseMDFGroupedParams, instance.UseMDFGroupedParams.value.ToString(), null),
             (Keys.UseMDFCompactView, instance.UseMDFCompactView.value.ToString(), null),
+            (Keys.UseBookmarkWindow, instance.UseBookmarkWindow.value.ToString(), null),
             (Keys.DisableScriptSafetyWarning, instance.DisableScriptSafetyWarning.value.ToString(), null),
             (Keys.UseSubPakForLooseTextures, instance.UseSubPakForLooseTextures.value.ToString(), null),
             (Keys.UseSymlinkPatching, instance.UseSymlinkPatching.value.ToString(), null),
@@ -832,6 +835,9 @@ public class AppConfig : Singleton<AppConfig>
                             break;
                         case Keys.UseMDFCompactView:
                             UseMDFCompactView.value = ReadBool(value);
+                            break;
+                        case Keys.UseBookmarkWindow:
+                            UseBookmarkWindow.value = ReadBool(value);
                             break;
                         case Keys.DisableScriptSafetyWarning:
                             DisableScriptSafetyWarning.value = ReadBool(value);

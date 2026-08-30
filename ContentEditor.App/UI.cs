@@ -455,6 +455,7 @@ public static class AppIcons
     public static readonly char[] SIC_TexExport = { '\uee6c', '\uee6d' };
     public static readonly char[] SIC_MaterialImport = { '\uee6e', '\uee6f' };
     public static readonly char[] SIC_FolderOpenInTextEditor = { '\uee70', '\uee71', '\uee72', '\uee73', '\uee74' };
+    public static readonly char[] SIC_FileUnsupportedFormat = { '\uee75', '\uee76', '\uee77' };
 
     public static string PrependIcon(this string text, object target)
     {
@@ -548,7 +549,8 @@ public static class AppIcons
         KnownFileFormats.Fsm or KnownFileFormats.Fsm2 => (SI_FileType_FSM, Colors.FileTypeFSM),
         KnownFileFormats.MotionFsm or KnownFileFormats.MotionFsm2 => (SI_FileType_MOTFSM, Colors.FileTypeMOTFSM),
         KnownFileFormats.TimelineFsm2 => (SI_FileType_TMLFSM2, Colors.FileTypeTMLFSM2),
-        KnownFileFormats.Chain or KnownFileFormats.Chain2 => (SI_FileType_CHAIN, Colors.FileTypeCHAIN),
+        KnownFileFormats.Chain => (SI_FileType_CHAIN, Colors.FileTypeCHAIN),
+        KnownFileFormats.Chain2 => (SI_FileType_CHAIN2, Colors.FileTypeCHAIN),
         KnownFileFormats.UserCurve => (SI_FileType_UCURVE, Colors.FileTypeUCURVE),
         KnownFileFormats.UserCurveList => (SI_FileType_UCURVELIST, Colors.FileTypeUCURVELIST),
         KnownFileFormats.Message => (SI_FileType_MSG, Colors.FileTypeMSG),
