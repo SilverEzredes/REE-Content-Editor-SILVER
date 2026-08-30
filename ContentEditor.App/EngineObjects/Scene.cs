@@ -80,6 +80,9 @@ public sealed class Scene : NodeTreeContainer, IDisposable, IAsyncResourceReceiv
             foreach (var component in Renderable.components.OfType<MeshComponent>()) {
                 component.SetWireframeOverlay(value);
             }
+            foreach (var c in childScenes) {
+                c.WireframeOverlay = value;
+            }
         }
     }
 
