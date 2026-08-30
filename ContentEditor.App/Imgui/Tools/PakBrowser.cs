@@ -78,6 +78,7 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
 
     private readonly Dictionary<(string, int, ImGuiSortDirection, int), string[]> cachedResults = new();
     private readonly HashSet<KnownFileFormats> _activeFileTypeFilters = new();
+    private bool isHideUnsupportedFormats = true;
     private int fileTypeFilterIDX = 0;
     private string fileTypeFilterSearch = string.Empty;
     private static readonly (KnownFileFormats Format, string Ext)[] knownFileTypes = Enum.GetValues<KnownFileFormats>()
@@ -335,12 +336,25 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
             if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_PakExtractTo, [Colors.IconPrimary, Colors.IconPrimary, Colors.IconSecondary])) {
                 PlatformUtils.ShowFolderDialog(ExtractCurrentList, AppConfig.Instance.GetGameExtractPath(Workspace.Config.Game));
             }
-            ImguiHelpers.Tooltip("Extract to...");
+            ImguiHelpers.Tooltip(Lang.PakBrowser.ExtractTo);
         }
         ImGui.SameLine();
         int fileTypeFilterColNum = 4;
-        float fileTypeFilterPopupW = 220f * UI.UIScale * fileTypeFilterColNum;
+        float colDesiredWidth = isHideUnsupportedFormats ? 180 * UI.UIScale : 195 * UI.UIScale;
+
+        var mainViewport = ImGui.GetMainViewport();
+        float viewportUsableW = mainViewport.WorkSize.X * 0.9f;
+        int computedCols = (int)(viewportUsableW / colDesiredWidth);
+        fileTypeFilterColNum = Math.Clamp(computedCols, 1, 4);
+        float fileTypeFilterPopupW = colDesiredWidth * fileTypeFilterColNum;
+
+        Vector2 buttonPos = ImGui.GetCursorScreenPos();
+        float desiredButtonW = buttonPos.X;
+        float maxViewportW = mainViewport.WorkPos.X + mainViewport.WorkSize.X - fileTypeFilterPopupW;
+        float clampedViewportW = Math.Clamp(desiredButtonW, mainViewport.WorkPos.X, Math.Max(mainViewport.WorkPos.X, maxViewportW));
+        
         ImGui.SetNextItemWidth(fileTypeFilterW);
+        ImGui.SetNextWindowPos(new Vector2(clampedViewportW, buttonPos.Y + ImGui.GetFrameHeightWithSpacing()));
         ImGui.SetNextWindowSize(new Vector2(fileTypeFilterPopupW, 0));
         if (ImGui.BeginCombo("##FileTypeFilters"u8, fileTypeFilterLabel, ImGuiComboFlags.HeightLargest)) {
             AppImguiHelpers.ClearableInputText("##FileTypeFilterSearch"u8, $"{AppIcons.SI_GenericMagnifyingGlass} Filter file extensions", ref fileTypeFilterSearch, 32);
@@ -351,55 +365,74 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
                     pagination.page = 0;
                     fileTypeFilterIDX++;
                 }
-                ImguiHelpers.Tooltip("Clear Filters");
+                ImguiHelpers.Tooltip(Lang.PakBrowser.Tooltip_ClearFilters);
             }
+            ImguiHelpers.InlineVerticalSeparator();
+            if (ImguiHelpers.ToggleButtonMultiColor(AppIcons.SIC_FileUnsupportedFormat, ref isHideUnsupportedFormats, [Colors.IconPrimary, Colors.IconPrimary, Colors.IconTertiary], Colors.IconActive)) {
+                fileTypeFilterIDX++;
+            }
+            ImguiHelpers.Tooltip(Lang.PakBrowser.Tooltip_HideUnsupported);
             ImGui.Separator();
 
-            var colWidth = fileTypeFilterPopupW / fileTypeFilterColNum - ImGui.GetStyle().WindowPadding.X;
-            ImGui.Columns(fileTypeFilterColNum, "##FileTypeFilterColumns"u8, false);
-            for (int c = 0; c < fileTypeFilterColNum; c++) {
-                ImGui.SetColumnWidth(c, colWidth);
-            }
-
-            ImGui.PushItemFlag(ImGuiItemFlags.AutoClosePopups, false);
-            foreach (var (format, ext) in knownFileTypes) {
-                if (fileTypeFilterSearch.Length > 0 && ext.IndexOf(fileTypeFilterSearch, StringComparison.OrdinalIgnoreCase) < 0) continue;
-
-                ImGui.PushID(ext);
-                var rowStart = ImGui.GetCursorPos();
-                bool isSelected = _activeFileTypeFilters.Contains(format);
-                bool wasRowClicked = ImGui.Selectable("##filterRow", false, ImGuiSelectableFlags.None, new Vector2(colWidth, ImGui.GetFrameHeight()));
-                ImGui.SetNextItemAllowOverlap();
-
-                ImGui.SetCursorPos(rowStart);
-                bool wasChkboxClicked = ImGui.Checkbox("##filterFakeChkBox", ref isSelected);
-                ImGui.SameLine();
-                var (icon, col) = AppIcons.GetIcon(format);
-                if (icon != '\0') {
-                    ImGui.TextColored(col, $"{icon}");
-                } else {
-                    ImGui.Text($"{AppIcons.SI_Blank}");
+            var colW = fileTypeFilterPopupW / fileTypeFilterColNum;
+            if (ImGui.BeginTable("##FileTypeFilterTable", fileTypeFilterColNum, ImGuiTableFlags.SizingFixedFit)) {
+                for (int c = 0; c < fileTypeFilterColNum; c++) {
+                    ImGui.TableSetupColumn($"##col{c}", ImGuiTableColumnFlags.WidthFixed, colW);
                 }
-                ImGui.SameLine();
-                ImGui.Text("." + ext);
-
-                if (wasRowClicked || wasChkboxClicked) {
-                    bool isUpdatedActiveFilters = wasChkboxClicked ? isSelected : !_activeFileTypeFilters.Contains(format);
-                    if (isUpdatedActiveFilters) {
-                        _activeFileTypeFilters.Add(format);
-                    } else {
-                        _activeFileTypeFilters.Remove(format);
+                ImGui.PushItemFlag(ImGuiItemFlags.AutoClosePopups, false);
+                int colIDX = 0;
+                foreach (var (format, ext) in knownFileTypes) {
+                    string fileEXT = "." + ext;
+                    if (fileTypeFilterSearch.Length > 0 && ext.IndexOf(fileTypeFilterSearch, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    if (isHideUnsupportedFormats && !contentWorkspace.ResourceManager.CanLoadFile(fileEXT)) continue;
+                    if (colIDX % fileTypeFilterColNum == 0) {
+                        ImGui.TableNextRow();
                     }
-                    pagination.page = 0;
-                    fileTypeFilterIDX++;
-                    previewGenerator?.CancelCurrentQueue();
-                }
+                    ImGui.TableSetColumnIndex(colIDX % fileTypeFilterColNum);
+                    ImGui.AlignTextToFramePadding();
 
-                ImGui.PopID();
-                ImGui.NextColumn();
+                    ImGui.PushID(ext);
+                    bool isSelected = _activeFileTypeFilters.Contains(format);
+                    float cellW = ImGui.GetContentRegionAvail().X;
+                    bool wasRowClicked = ImGui.Selectable("##filterRow", false, ImGuiSelectableFlags.None, new Vector2(cellW, ImGui.GetFrameHeight()));
+
+                    Vector2 selMin = ImGui.GetItemRectMin();
+                    Vector2 selMax = ImGui.GetItemRectMax();
+                    float selH = selMax.Y - selMin.Y;
+                    float chkH = ImGui.GetFrameHeight();
+                    float yOffset = (selH - chkH) * 0.5f;
+                    float xOffset = 4f * UI.UIScale;
+
+                    ImGui.SetNextItemAllowOverlap();
+                    ImGui.SetCursorScreenPos(new Vector2(selMin.X + xOffset, selMin.Y + yOffset));
+                    bool wasChkboxClicked = ImGui.Checkbox("##filterFakeChkBox", ref isSelected);
+                    ImGui.SameLine();
+                    var (icon, col) = AppIcons.GetIcon(format);
+                    if (icon != '\0') {
+                        ImGui.TextColored(col, $"{icon}");
+                    } else {
+                        ImGui.Text($"{AppIcons.SI_Blank}");
+                    }
+                    ImGui.SameLine();
+                    ImGui.Text(fileEXT);
+
+                    if (wasRowClicked || wasChkboxClicked) {
+                        bool isUpdatedActiveFilters = wasChkboxClicked ? isSelected : !_activeFileTypeFilters.Contains(format);
+                        if (isUpdatedActiveFilters) {
+                            _activeFileTypeFilters.Add(format);
+                        } else {
+                            _activeFileTypeFilters.Remove(format);
+                        }
+                        pagination.page = 0;
+                        fileTypeFilterIDX++;
+                        previewGenerator?.CancelCurrentQueue();
+                    }
+                    ImGui.PopID();
+                    colIDX++;
+                }
+                ImGui.PopItemFlag();
+                ImGui.EndTable();
             }
-            ImGui.PopItemFlag();
-            ImGui.Columns(1);
             ImGui.EndCombo();
         }
         ImGui.SameLine();
@@ -409,7 +442,7 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
                 pagination.page = 0;
                 fileTypeFilterIDX++;
             }
-            ImguiHelpers.Tooltip("Clear Filters");
+            ImguiHelpers.Tooltip(Lang.PakBrowser.Tooltip_ClearFilters);
         }
         DrawContents();
     }

@@ -455,6 +455,7 @@ public static class AppIcons
     public static readonly char[] SIC_TexExport = { '\uee6c', '\uee6d' };
     public static readonly char[] SIC_MaterialImport = { '\uee6e', '\uee6f' };
     public static readonly char[] SIC_FolderOpenInTextEditor = { '\uee70', '\uee71', '\uee72', '\uee73', '\uee74' };
+    public static readonly char[] SIC_FileUnsupportedFormat = { '\uee75', '\uee76', '\uee77' };
 
     public static string PrependIcon(this string text, object target)
     {
