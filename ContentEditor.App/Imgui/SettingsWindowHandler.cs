@@ -604,6 +604,25 @@ public class SettingsWindowHandler : IWindowHandler, IKeepEnabledWhileSaving
         }
         ImguiHelpers.Tooltip(text.Tooltip);
     }
+    public static bool ShowSliderFloatWithReset(FixedString label, ref float value, float min, float max, float defaultValue, string id, string format = "%.3f", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
+    {
+        var showReset = Math.Abs(value - defaultValue) > 0.0001f;
+        if (showReset) {
+            var resetWidth = ImGui.CalcTextSize($"{AppIcons.SI_Reset}").X + ImGui.GetStyle().FramePadding.X * 2.0f;
+            ImGui.SetNextItemWidth(Math.Max(1.0f, ImGui.CalcItemWidth() - resetWidth - ImGui.GetStyle().ItemSpacing.X));
+        }
+
+        var changed = ImGui.SliderFloat(label, ref value, min, max, format, flags);
+        if (showReset) {
+            ImGui.SameLine();
+            if (ImGui.Button($"{AppIcons.SI_Reset}##Reset{id}")) {
+                value = defaultValue;
+                changed = true;
+            }
+            ImguiHelpers.Tooltip("Reset to default"u8);
+        }
+        return changed;
+    }
     private static void ShowFolderSetting(AppConfig.ClassSettingWrapper<string> setting, TextTooltip text)
     {
         var configPath = setting.Get();

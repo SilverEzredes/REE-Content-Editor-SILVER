@@ -21,15 +21,15 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
     public bool HasSidePanel => IsEnabled && interactionMode == EditorInteractionMode.Object;
     public MeshDisplayMode DisplayMode { get; private set; }
 
-    private EditorInteractionMode interactionMode = EditorInteractionMode.Object;
-    private GeometrySelectionMode geometrySelectionMode = GeometrySelectionMode.Vertex;
-    private enum EditorInteractionMode
+    public EditorInteractionMode interactionMode = EditorInteractionMode.Object;
+    public GeometrySelectionMode geometrySelectionMode = GeometrySelectionMode.Vertex;
+    public enum EditorInteractionMode
     {
         Object,
         Edit,
     }
 
-    private enum GeometrySelectionMode
+    public enum GeometrySelectionMode
     {
         Vertex,
         Edge,
@@ -68,12 +68,12 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
     private bool suppressNextSceneClick;
     private MeshEditorOptionsWindow? optionsWindow;
     private WindowData? optionsWindowData;
-    private float vertexPointSize = AppConfig.Settings.MeshViewer.EditorVertexSize;
-    private float vertexSelectionRadius = AppConfig.Settings.MeshViewer.EditorVertexSelectionRadius;
-    private bool mirrorX = AppConfig.Settings.MeshViewer.EditorMirrorX;
-    private bool mirrorY = AppConfig.Settings.MeshViewer.EditorMirrorY;
-    private bool mirrorZ = AppConfig.Settings.MeshViewer.EditorMirrorZ;
-    private float mirrorRadius = AppConfig.Settings.MeshViewer.EditorMirrorRadius;
+    public float vertexPointSize = AppConfig.Settings.MeshViewer.EditorVertexSize;
+    public float vertexSelectionRadius = AppConfig.Settings.MeshViewer.EditorVertexSelectionRadius;
+    public bool mirrorX = AppConfig.Settings.MeshViewer.EditorMirrorX;
+    public bool mirrorY = AppConfig.Settings.MeshViewer.EditorMirrorY;
+    public bool mirrorZ = AppConfig.Settings.MeshViewer.EditorMirrorZ;
+    public float mirrorRadius = AppConfig.Settings.MeshViewer.EditorMirrorRadius;
     private bool optionsStayOnTop = AppConfig.Settings.MeshViewer.EditorOptionsStayOnTop;
     private float panelWidth;
     private bool panelWidthInitialized;
@@ -115,23 +115,17 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         ExceptZ,
     }
 
-    public void ShowButton(MeshViewerContext context)
+    public void ShowMeshEditorButton(MeshViewerContext context)
     {
         EnsureSceneSubscription();
         if (renderStateDirty) ApplyRenderState();
         else UpdateEditVertexPointSizes();
-        if (ImGui.MenuItem(Lang.MeshViewer.Title_Editor, "", IsEnabled)) {
+        
+        ImGui.PushStyleColor(ImGuiCol.Button, IsEnabled ? ImguiHelpers.GetColor(ImGuiCol.TabSelected) with { W = 0.25f } : Vector4.Zero);
+        if (ImguiHelpers.ButtonMultiColor(AppIcons.SIC_MeshEditor, [Colors.IconPrimary, Colors.IconPrimary, Colors.IconPrimary, Colors.IconSecondary, Colors.IconSecondary, Colors.IconSecondary], null, Lang.MeshViewer.Title_Editor.String)) {
             SetEnabled(!IsEnabled);
         }
-    }
-
-    public void ShowDisplayModeControls()
-    {
-        if (ImGui.RadioButton(Lang.MeshViewer.Display_Default, DisplayMode == MeshDisplayMode.Default)) SetDisplayMode(MeshDisplayMode.Default);
-        ImGui.SameLine();
-        if (ImGui.RadioButton(Lang.MeshViewer.Display_Solid, DisplayMode == MeshDisplayMode.Solid)) SetDisplayMode(MeshDisplayMode.Solid);
-        ImGui.SameLine();
-        if (ImGui.RadioButton(Lang.MeshViewer.Display_Wireframe, DisplayMode == MeshDisplayMode.Wireframe)) SetDisplayMode(MeshDisplayMode.Wireframe);
+        ImGui.PopStyleColor();
     }
 
     public bool ShowViewportModeControls(Vector2 viewportPosition, Vector2 viewportSize)
@@ -173,21 +167,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         DrawBoxSelection(viewportPosition);
 
         var controlsStart = ImGui.GetCursorPos();
-        var hovered = false;
-        if (ShowModeButton(Lang.MeshViewer.Editor_ModeObject.String, interactionMode == EditorInteractionMode.Object)) SetInteractionMode(EditorInteractionMode.Object);
-        hovered |= ImGui.IsItemHovered();
-        ImGui.SameLine();
-        if (ShowModeButton(Lang.MeshViewer.Editor_ModeEdit.String, interactionMode == EditorInteractionMode.Edit)) SetInteractionMode(EditorInteractionMode.Edit);
-        hovered |= ImGui.IsItemHovered();
-        if (interactionMode == EditorInteractionMode.Edit) {
-            ImGui.SetCursorPos(new Vector2(controlsStart.X, controlsStart.Y + ImGui.GetFrameHeight() + ImGui.GetStyle().ItemSpacing.Y));
-            if (ImGui.Button(Lang.MeshViewer.Editor_Options)) OpenOptions();
-            hovered |= ImGui.IsItemHovered();
-            if (IsMoving) {
-                ImGui.SameLine();
-                ImGui.TextUnformatted(GetMoveStatus());
-            }
-        }
+        var hovered = false;        
 
         if (IsMoving && !hovered && ImGui.IsMouseHoveringRect(viewportPosition, viewportPosition + viewportSize)) {
             if (ImGui.IsMouseClicked(ImGuiMouseButton.Left)) {
@@ -363,13 +343,13 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         ApplyRenderState();
     }
 
-    private void SetDisplayMode(MeshDisplayMode mode)
+    public void SetDisplayMode(MeshDisplayMode mode)
     {
         DisplayMode = mode;
         ApplyRenderState();
     }
 
-    private void SetGeometrySelectionMode(GeometrySelectionMode mode)
+    public void SetGeometrySelectionMode(GeometrySelectionMode mode)
     {
         if (geometrySelectionMode == mode) return;
         ConvertGeometrySelection(mode);
@@ -436,7 +416,7 @@ internal sealed class MeshEditor(MeshViewer viewer) : IDisposable
         selectedFaces.Clear();
     }
 
-    private void SetInteractionMode(EditorInteractionMode mode)
+    public void SetInteractionMode(EditorInteractionMode mode)
     {
         if (interactionMode == mode) return;
         CancelMove();

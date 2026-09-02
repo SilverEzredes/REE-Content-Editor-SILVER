@@ -28,6 +28,8 @@ public static partial class Lang
         public static readonly FixedString Display_Default = "Default";
         public static readonly FixedString Display_Solid = "Solid";
         public static readonly FixedString Display_Wireframe = "Wireframe";
+        public static readonly FixedString DisplayTex_HighRes = "Hi-Res";
+        public static readonly FixedString DisplayTex_LowRes = "Low-Res";
         public static readonly IconString Title_Animations = new("{0} Animations", AppIcons.SI_Animation);
 
         public static readonly FixedString Error_MaterialCountMismatch = """
