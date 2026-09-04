@@ -164,6 +164,10 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
                     return;
                 }
                 Workspace.PakReader.IncludeUnknownFilePaths = true;
+                if (!Workspace.PakReader.CachedPaths.Any()) {
+                    // force a rescan in case it was previous loaded without the list file
+                    Workspace.PakReader.Clear();
+                }
                 Workspace.PakReader.AddFiles(activeListFile.Files);
                 Workspace.PakReader.CacheEntries(true);
                 reader = Workspace.PakReader.Clone();
@@ -352,7 +356,7 @@ public partial class PakBrowser(ContentWorkspace contentWorkspace, string[]? pak
         float desiredButtonW = buttonPos.X;
         float maxViewportW = mainViewport.WorkPos.X + mainViewport.WorkSize.X - fileTypeFilterPopupW;
         float clampedViewportW = Math.Clamp(desiredButtonW, mainViewport.WorkPos.X, Math.Max(mainViewport.WorkPos.X, maxViewportW));
-        
+
         ImGui.SetNextItemWidth(fileTypeFilterW);
         ImGui.SetNextWindowPos(new Vector2(clampedViewportW, buttonPos.Y + ImGui.GetFrameHeightWithSpacing()));
         ImGui.SetNextWindowSize(new Vector2(fileTypeFilterPopupW, 0));

@@ -66,7 +66,7 @@ public class ListFileGeneratorTaskWindow : BaseWindowHandler
 {
     public override string HandlerName => "List File Generator";
 
-    private FileListGenerator.ScanFlags options = FileListGenerator.ScanFlags.Executable|FileListGenerator.ScanFlags.Files|FileListGenerator.ScanFlags.MaintainPreviousList|FileListGenerator.ScanFlags.ForceRetryUnknownExtensionVersions;
+    private FileListGenerator.ScanFlags options = FileListGenerator.ScanFlags.Executable|FileListGenerator.ScanFlags.Files|FileListGenerator.ScanFlags.MaintainPreviousList;
     private bool includeOtherGameLists;
     private bool latestPAKsOnly;
     private List<(KnownFileFormats, int)> formatOverrides = new();
@@ -89,8 +89,10 @@ public class ListFileGeneratorTaskWindow : BaseWindowHandler
         if (ImGui.TreeNode("File format version overrides")) {
             for (int i = 0; i < formatOverrides.Count; i++) {
                 (KnownFileFormats fmt, int version) = formatOverrides[i];
+                ImGui.PushID((int)fmt);
                 if (ImGui.Button($"{AppIcons.SI_GenericClose}")) {
                     formatOverrides.RemoveAt(i--);
+                    ImGui.PopID();
                     continue;
                 }
 
@@ -110,6 +112,7 @@ public class ListFileGeneratorTaskWindow : BaseWindowHandler
                         formatOverrides[i] = (fmt, version);
                     }
                 }
+                ImGui.PopID();
             }
             ImGui.Separator();
             ImguiHelpers.FilterableCSharpEnumCombo("New override format"u8, ref _pendingFormat, ref formatFilter);
